@@ -1,0 +1,88 @@
+{
+  "_comment": "Higgsfield মডেল রেজিস্ট্রি — অ্যাডমিন এই ফাইলটি এডিট করে মডেল চালু/বন্ধ করতে পারেন, অ্যাপ নতুন করে বানাতে হবে না। credit_cost_bdt হলো আমাদের নিজেদের ক্রেডিট দাম (অ্যাডমিন ঠিক করবেন); higgsfield_usd_estimate হলো Higgsfield-এর আনুমানিক খরচ — console-এ যাচাই করতে হবে।",
+  "_verified_on": "2026-11-26",
+  "_sources": [
+    "https://docs.higgsfield.ai/docs/index",
+    "https://open.higgsfield.ai/models/bytedance/seedance-2.5/image-to-video/api-reference",
+    "https://open.higgsfield.ai/models/minimax/hailuo-2.3/standard/image-to-video/api-reference",
+    "https://open.higgsfield.ai/models/kling-video/v4.0/image-to-video/api-reference",
+    "https://docs.higgsfield.ai/docs/models/soul-2/generate",
+    "https://docs.higgsfield.ai/docs/models/soul-cinema/generate"
+  ],
+  "models": [
+    {
+      "id": "higgsfield-ai/soul/v2/standard",
+      "name": "Soul 2",
+      "type": "text-to-image",
+      "endpoint": "https://api.higgsfield.ai/higgsfield-ai/soul/v2/standard",
+      "enabled": true,
+      "verified": true,
+      "credit_cost": 2,
+      "notes": "Text-to-image। prompt আবশ্যক; aspect_ratio, style_id, seed, batch_size (1/4) সাপোর্ট করে।"
+    },
+    {
+      "id": "higgsfield-ai/soul/cinema",
+      "name": "Soul Cinema",
+      "type": "text-to-image",
+      "endpoint": "https://api.higgsfield.ai/higgsfield-ai/soul/cinema",
+      "enabled": true,
+      "verified": true,
+      "credit_cost": 3,
+      "notes": "Text-to-image, সিনেমাটিক স্টাইল। ডকসে বলা আছে কিছু model discovery-তে নাও থাকতে পারে, তবে endpoint সরাসরি ব্যবহার করা যায়।"
+    },
+    {
+      "id": "kling-video/v4.0/image-to-video",
+      "name": "Kling 4.0",
+      "type": "image-to-video",
+      "endpoint": "https://api.higgsfield.ai/kling-video/v4.0/image-to-video",
+      "enabled": true,
+      "verified": true,
+      "credit_cost": 15,
+      "notes": "Image-to-video। প্রথম ফ্রেম (image_url) আবশ্যক; duration 3–30 সেকেন্ড; resolution 720p/1080p।"
+    },
+    {
+      "id": "bytedance/seedance-2.5/image-to-video",
+      "name": "Seedance 2.5",
+      "type": "image-to-video",
+      "endpoint": "https://api.higgsfield.ai/bytedance/seedance-2.5/image-to-video",
+      "enabled": true,
+      "verified": true,
+      "credit_cost": 35,
+      "notes": "Image-to-video। image_url আবশ্যক; duration 4–30 সেকেন্ড; generate_audio ও draft মোড আছে।"
+    },
+    {
+      "id": "minimax/hailuo-2.3/standard/image-to-video",
+      "name": "MiniMax Hailuo 2.3 Standard",
+      "type": "image-to-video",
+      "endpoint": "https://api.higgsfield.ai/minimax/hailuo-2.3/standard/image-to-video",
+      "enabled": true,
+      "verified": true,
+      "credit_cost": 12,
+      "notes": "Image-to-video। duration 6 বা 10 সেকেন্ড; prompt_optimizer আছে।"
+    },
+    {
+      "id": "higgsfield/genjutsu/motion-transfer/v1.0",
+      "name": "Genjutsu Motion Transfer",
+      "type": "video-to-video",
+      "endpoint": "https://api.higgsfield.ai/higgsfield/genjutsu/motion-transfer/v1.0",
+      "enabled": false,
+      "verified": true,
+      "credit_cost": 20,
+      "notes": "Higgsfield-এর নিজের মডেল। সোর্স ভিডিও কমপক্ষে ৪ সেকেন্ড হতে হবে + রেফারেন্স ছবি। ডিফল্টে বন্ধ — অ্যাডমিন চাইলে চালু করবেন।"
+    }
+  ],
+  "unverified_or_not_on_api": [
+    {
+      "id": "nano-banana-pro",
+      "name": "Nano Banana Pro",
+      "status": "UNVERIFIED — NOT on API (2026-11-08 যাচাই অনুযায়ী)",
+      "notes": "শুধু Higgsfield ওয়েব অ্যাপে চলে; API pricing পেজে নেই। API দিয়ে কল করলে ব্যর্থ হবে। তাই রেজিস্ট্রিতে রাখা হয়নি।"
+    },
+    {
+      "id": "veo-3.1",
+      "name": "Google Veo 3.1",
+      "status": "UNVERIFIED — API-তে আছে কি না নিশ্চিত নয় (Nov 2026 রিপোর্টে API-তে নেই বলা হয়েছে)",
+      "notes": "ওয়েব অ্যাপে (Plus প্ল্যান থেকে) থাকলেও API ক্যাটালগে নিশ্চিত নয়। console-এ যাচাই না করে চালু করবেন না।"
+    }
+  ]
+}
