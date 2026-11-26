@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="bn" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>প্রাইসিং — Suman AI Studio</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  :root { --bg:#0f172a; --fg:#f1f5f9; --card:#1e293b; --muted:#94a3b8; }
+  html[data-theme="light"] { --bg:#f8fafc; --fg:#0f172a; --card:#ffffff; --muted:#475569; }
+  body { background:var(--bg); color:var(--fg); }
+  .card { background:var(--card); }
+  .muted { color:var(--muted); }
+</style>
+</head>
+<body class="min-h-screen font-sans">
+<header class="max-w-5xl mx-auto flex items-center justify-between px-4 py-4">
+  <a href="/" class="text-xl font-bold">🎬 Suman AI Studio</a>
+  <div class="flex gap-2 items-center">
+    <button onclick="toggleTheme()" class="px-3 py-1 rounded-full card text-sm" id="themeBtn">☀️ Light</button>
+    <a href="/login.html" class="px-3 py-1 rounded-full card text-sm">লগইন</a>
+    <a href="/register.html" class="px-3 py-1 rounded-full bg-violet-600 text-white text-sm">রেজিস্টার</a>
+  </div>
+</header>
+<main class="max-w-5xl mx-auto px-4 pb-16">
+  <h2 class="text-2xl font-bold mt-4">💳 প্রাইসিং</h2>
+  <p class="muted text-sm mt-1">সাইনআপে একবারের ফ্রি স্টার্টার ক্রেডিট বোনাস (পরিমাণ অ্যাডমিন নির্ধারণ করেন)। পেমেন্ট: bKash / Nagad — ম্যানুয়াল যাচাই।</p>
+  <div id="packages" class="grid md:grid-cols-3 gap-3 mt-6 text-sm">⏳ প্যাকেজ লোড হচ্ছে…</div>
+  <div class="card rounded-2xl p-5 mt-8 text-sm">
+    <h3 class="font-bold">কীভাবে কিনবেন?</h3>
+    <p class="muted mt-2">১. রেজিস্টার/লগইন করুন → ২. প্যাকেজ বেছে নিন → ৩. দেখানো bKash/Nagad নম্বরে টাকা পাঠান → ৪. Transaction ID জমা দিন → ৫. অ্যাডমিন যাচাই করে ক্রেডিট দেবেন।</p>
+  </div>
+</main>
+<script>
+function toggleTheme(){ const h=document.documentElement; const n=h.dataset.theme==='dark'?'light':'dark'; h.dataset.theme=n; localStorage.setItem('sas_theme', n); document.getElementById('themeBtn').textContent = n==='dark' ? '☀️ Light' : '🌙 Dark'; }
+(function(){ const t=localStorage.getItem('sas_theme'); if(t){ document.documentElement.dataset.theme=t; document.getElementById('themeBtn').textContent = t==='dark' ? '☀️ Light' : '🌙 Dark'; } })();
+function esc(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+(async function(){
+  const box = document.getElementById('packages');
+  try{
+    const r = await fetch('/api/packages');
+    const d = await r.json();
+    if(!r.ok){ box.textContent = d.message || 'প্যাকেজ লোড করা যায়নি (ডেটাবেস সংযুক্ত হয়নি)।'; return; }
+    if(!d.packages.length){ box.textContent='কোনো প্যাকেজ চালু নেই।'; return; }
+    box.innerHTML = d.packages.map(p =>
+      `<div class="card rounded-2xl p-5"><b>${esc(p.name_bn)}</b> <span class="muted">(${esc(p.kind)})</span>
+       <p class="text-2xl font-bold mt-2">${p.price_bdt}৳ <span class="muted text-sm">($${p.price_usd})</span></p>
+       <p class="muted">${p.credits} ক্রেডিট</p>
+       <a href="/payments.html" class="inline-block mt-3 px-4 py-2 rounded-full bg-violet-600 text-white text-sm">কিনুন</a></div>`).join('');
+  }catch(e){ box.textContent='❌ সার্ভারের সাথে সংযোগ হয়নি।'; }
+})();
+</script>
+</body>
+</html>

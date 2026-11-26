@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="bn" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>অ্যাডমিন — Suman AI Studio</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  :root { --bg:#0f172a; --fg:#f1f5f9; --card:#1e293b; --muted:#94a3b8; }
+  html[data-theme="light"] { --bg:#f8fafc; --fg:#0f172a; --card:#ffffff; --muted:#475569; }
+  body { background:var(--bg); color:var(--fg); }
+  .card { background:var(--card); }
+  .muted { color:var(--muted); }
+  input, select { background:var(--card); color:var(--fg); border:1px solid var(--muted); border-radius:10px; padding:8px 10px; }
+  .tab { cursor:pointer; }
+  .tab.sel { background:#7c3aed; color:#fff; }
+</style>
+</head>
+<body class="min-h-screen font-sans">
+<header class="max-w-6xl mx-auto flex items-center justify-between px-4 py-4">
+  <a href="/dashboard.html" class="text-xl font-bold">🛡️ অ্যাডমিন — Suman AI Studio</a>
+  <div class="flex gap-2 items-center">
+    <button onclick="toggleTheme()" class="px-3 py-1 rounded-full card text-sm" id="themeBtn">☀️ Light</button>
+    <a href="/dashboard.html" class="px-3 py-1 rounded-full card text-sm">ড্যাশবোর্ড</a>
+  </div>
+</header>
+<main class="max-w-6xl mx-auto px-4 pb-16">
+  <p id="gate" class="muted text-sm">⏳ অনুমতি যাচাই হচ্ছে…</p>
+  <div id="app" class="hidden">
+    <nav class="flex flex-wrap gap-2 mt-4" id="tabs">
+      <button class="tab px-3 py-1 rounded-full card text-sm sel" data-tab="analytics" onclick="showTab('analytics', this)">📊 অ্যানালিটিক্স</button>
+      <button class="tab px-3 py-1 rounded-full card text-sm" data-tab="users" onclick="showTab('users', this)">👥 ইউজার</button>
+      <button class="tab px-3 py-1 rounded-full card text-sm" data-tab="payments" onclick="showTab('payments', this)">💳 পেমেন্ট</button>
+      <button class="tab px-3 py-1 rounded-full card text-sm" data-tab="packages" onclick="showTab('packages', this)">📦 প্যাকেজ</button>
+      <button class="tab px-3 py-1 rounded-full card text-sm" data-tab="models" onclick="showTab('models', this)">🤖 মডেল</button>
+      <button class="tab px-3 py-1 rounded-full card text-sm" data-tab="reports" onclick="showTab('reports', this)">🚩 রিপোর্ট</button>
+      <button class="tab px-3 py-1 rounded-full card text-sm" data-tab="settings" onclick="showTab('settings', this)">⚙️ সেটিংস</button>
+    </nav>
+    <section id="tab-analytics" class="tabpane mt-6"><div id="analytics" class="grid md:grid-cols-3 gap-3 text-sm">⏳ লোড হচ্ছে…</div></section>
+    <section id="tab-users" class="tabpane mt-6 hidden">
+      <div class="flex gap-2"><input id="userQ" placeholder="ইমেইল/নাম খুঁজুন" class="flex-1"><button onclick="loadUsers()" class="px-4 py-2 rounded-full bg-violet-600 text-white text-sm">খুঁজুন</button></div>
+      <div id="users" class="mt-3 space-y-3 text-sm">⏳ লোড হচ্ছে…</div>
+    </section>
+    <section id="tab-payments" class="tabpane mt-6 hidden">
+      <select id="payFilter" onchange="loadPayments()" class="rounded-full px-3 py-2 text-sm card">
+        <option value="">সব পেমেন্ট</option><option value="pending">Pending</option><option value="approved">Approved</option><option value="rejected">Rejected</option>
+      </select>
+      <div id="payments" class="mt-3 space-y-3 text-sm">⏳ লোড হচ্ছে…</div>
+    </section>
+    <section id="tab-packages" class="tabpane mt-6 hidden"><div id="packages" class="space-y-3 text-sm">⏳ লোড হচ্ছে…</div></section>
+    <section id="tab-models" class="tabpane mt-6 hidden"><div id="models" class="space-y-3 text-sm">⏳ লোড হচ্ছে…</div></section>
+    <section id="tab-reports" class="tabpane mt-6 hidden"><div id="reports" class="space-y-3 text-sm">⏳ লোড হচ্ছে…</div></section>
+    <section id="tab-settings" class="tabpane mt-6 hidden"><div id="settings" class="space-y-3 text-sm">⏳ লোড হচ্ছে…</div></section>
+  </div>
+</main>
+<script>
+let token = localStorage.getItem('sas_token');
+let myRole = '';
+function toggleTheme(){ const h=document.documentElement; const n=h.dataset.theme==='dark'?'light':'dark'; h.dataset.theme=n; localStorage.setItem('sas_theme', n); document.getElementById('themeBtn').textContent = n==='dark' ? '☀️ Light' : '🌙 Dark'; }
+(function(){ const t=localStorage.getItem('sas_theme'); if(t){ document.documentElement.dataset.theme=t; document.getElementById('themeBtn').textContent = t==='dark' ? '☀️ Light' : '🌙 Dark'; } })();
+function esc(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function H(){ return { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' }; }
+function showTab(name, el){
+  document.querySelectorAll('.tabpane').forEach(x => x.classList.add('hidden'));
+  document.getElementById('tab-' + name).classList.remove('hidden');
+  document.querySelectorAll('.tab').forEach(x => x.classList.remove('sel'));
+  el.classList.add('sel');
+  ({ analytics: loadAnalytics, users: loadUsers, payments: loadPayments, packages: loadPackages, models: loadModels, reports: loadReports, settings: loadSettings })[name]();
+}
+async function api(path, opts){
+  const r = await fetch(path, opts);
+  const d = await r.json().catch(() => ({}));
+  return { ok: r.ok, status: r.status, data: d };
+}
+
+async function loadAnalytics(){
+  const box = document.getElementById('analytics');
+  const { ok, data } = await api('/api/admin/analytics', { headers: H() });
+  if(!ok){ box.textContent = data.message || 'অ্যানালিটিক্স লোড করা যায়নি।'; return; }
+  const card = (t, v, note) => `<div class="card rounded-2xl p-4"><p class="muted text-xs">${t}</p><p class="text-xl font-bold">${v}</p>${note ? `<p class="muted text-xs mt-1">${note}</p>` : ''}</div>`;
+  box.innerHTML =
+    card('মোট ইউজার', data.users.total, `নতুন (৩০ দিন): ${data.users.new_30d} • সক্রিয়: ${data.users.active_30d} • ব্যান: ${data.users.banned}`) +
+    card('জেনারেশন', data.generations.total, `ছবি: ${data.generations.images} • ভিডিও: ${data.generations.videos} • সম্পূর্ণ: ${data.generations.completed} • ব্যর্থ: ${data.generations.failed}`) +
+    card('আয় (রেকর্ড করা)', data.revenue.amount_bdt_recorded + '৳', data.revenue.note) +
+    card('পেমেন্ট', `${data.payments.approved} অনুমোদিত / ${data.payments.pending} pending`, `আজকের আয়: ${data.payments.revenue_today_bdt_recorded}৳ (রেকর্ড করা)`) +
+    card('ক্রেডিট', `খরচ: ${data.credits.credits_spent} • ফেরত: ${data.credits.credits_refunded}`, `মোট দেওয়া: ${data.credits.credits_granted}`) +
+    card('আনুমানিক লাভ (ESTIMATE)', data.estimated_profit.amount_bdt_estimated + '৳', data.estimated_profit.note);
+}
+
+async function loadUsers(){
+  const box = document.getElementById('users');
+  const q = document.getElementById('userQ').value.trim();
+  const { ok, data } = await api('/api/admin/users' + (q ? '?q=' + encodeURIComponent(q) : ''), { headers: H() });
+  if(!ok){ box.textContent = data.message || 'ইউজার তালিকা লোড করা যায়নি।'; return; }
+  if(!data.users.length){ box.textContent='কোনো ইউজার পাওয়া যায়নি।'; return; }
+  box.innerHTML = data.users.map(u =>
+    `<div class="card rounded-2xl p-4"><b>${esc(u.email)}</b> <span class="muted">(${esc(u.role)} • ${esc(u.status)} • ${u.credit_balance} ক্রেডিট)</span>
+     <div class="flex flex-wrap gap-2 mt-2">
+       <button onclick="userStatus('${u.id}','suspended')" class="px-3 py-1 rounded-full card text-xs">⏸️ Suspend</button>
+       <button onclick="userStatus('${u.id}','active')" class="px-3 py-1 rounded-full card text-xs">✅ Restore</button>
+       ${myRole === 'super_admin' ? `<button onclick="userStatus('${u.id}','banned')" class="px-3 py-1 rounded-full card text-xs">🚫 Ban (Super Admin)</button>` : ''}
+       <button onclick="adjustCredit('${u.id}')" class="px-3 py-1 rounded-full card text-xs">💳 ক্রেডিট যোগ/কাটুন</button>
+     </div></div>`).join('');
+}
+async function userStatus(id, status){
+  if(!confirm(`ইউজারের অবস্থা "${status}" করবেন?`)) return;
+  const { ok, data } = await api('/api/admin/users/' + id + '/status', { method:'POST', headers: H(), body: JSON.stringify({ status }) });
+  alert(ok ? (data.message || 'হয়েছে।') : (data.message || 'হয়নি।'));
+  loadUsers();
+}
+async function adjustCredit(id){
+  const amount = prompt('কত ক্রেডিট? (যোগ করতে ধনাত্মক, কাটতে ঋণাত্মক, যেমন 100 বা -50)');
+  if(amount === null) return;
+  const reason = prompt('কারণ লিখুন (অডিটের জন্য বাধ্যতামূলক):');
+  if(!reason) { alert('কারণ ছাড়া ক্রেডিট বদলানো যাবে না।'); return; }
+  const { ok, data } = await api('/api/admin/users/' + id + '/credits', { method:'POST', headers: H(), body: JSON.stringify({ amount: parseInt(amount, 10), reason }) });
+  alert(ok ? (data.message || 'হয়েছে।') : (data.message || 'হয়নি।'));
+  loadUsers();
+}
+
+async function loadPayments(){
+  const box = document.getElementById('payments');
+  const st = document.getElementById('payFilter').value;
+  const { ok, data } = await api('/api/admin/payments' + (st ? '?status=' + st : ''), { headers: H() });
+  if(!ok){ box.textContent = data.message || 'পেমেন্ট তালিকা লোড করা যায়নি।'; return; }
+  if(!data.payments.length){ box.textContent='কোনো পেমেন্ট নেই।'; return; }
+  box.innerHTML = data.payments.map(p =>
+    `<div class="card rounded-2xl p-4"><b>${esc(p.method)}</b> • ${p.amount_bdt}৳ • ${esc(p.user_email || '')} • ${esc(p.name_bn || '')}
+     <br><span class="muted text-xs">Trx: ${esc(p.transaction_id)} • অবস্থা: <b>${esc(p.status)}</b> • ${new Date(p.created_at).toLocaleString('bn-BD')}</span>
+     ${p.status === 'pending' ? `<div class="flex gap-2 mt-2">
+       <button onclick="reviewPay('${p.id}','approve')" class="px-3 py-1 rounded-full bg-green-700 text-white text-xs">✅ Approve</button>
+       <button onclick="reviewPay('${p.id}','reject')" class="px-3 py-1 rounded-full bg-red-800 text-white text-xs">❌ Reject</button>
+     </div>` : (p.review_note ? `<p class="text-xs muted mt-1">নোট: ${esc(p.review_note)}</p>` : '')}</div>`).join('');
+}
+async function reviewPay(id, decision){
+  const note = prompt(decision === 'approve' ? 'নোট (ঐচ্ছিক):' : 'প্রত্যাখ্যানের কারণ লিখুন:');
+  if(decision === 'reject' && note === null) return;
+  const { ok, data } = await api('/api/admin/payments/' + id + '/' + decision, { method:'POST', headers: H(), body: JSON.stringify({ note: note || '' }) });
+  alert(ok ? (data.message || 'হয়েছে।') : (data.message || 'হয়নি।'));
+  loadPayments();
+}
+
+async function loadPackages(){
+  const box = document.getElementById('packages');
+  const { ok, data } = await api('/api/admin/packages', { headers: H() });
+  if(!ok){ box.textContent = data.message || 'প্যাকেজ লোড করা যায়নি।'; return; }
+  box.innerHTML = data.packages.map(p =>
+    `<div class="card rounded-2xl p-4"><b>${esc(p.name_bn)}</b> (${esc(p.kind)}) — ${p.price_bdt}৳ / $${p.price_usd} • ${p.credits} ক্রেডিট • ${p.is_active ? 'চালু' : 'বন্ধ'}
+     <button onclick="togglePkg('${p.id}', ${!p.is_active})" class="ml-2 px-3 py-1 rounded-full card text-xs">${p.is_active ? 'বন্ধ করুন' : 'চালু করুন'}</button></div>`).join('') +
+    '<p class="muted text-xs">প্যাকেজের দাম/ক্রেডিট বদলাতে API ব্যবহার করুন (PUT /api/admin/packages/:id) — UI এডিটর Phase 10-এ আসবে।</p>';
+}
+async function togglePkg(id, active){
+  // Full package row is needed for PUT; fetch it from the admin list via a fresh GET.
+  const { data } = await api('/api/admin/packages', { headers: H() });
+  const p = (data.packages || []).find(x => x.id === id);
+  if(!p) return;
+  const { ok, data: d2 } = await api('/api/admin/packages/' + id, { method:'PUT', headers: H(), body: JSON.stringify({ ...p, is_active: active }) });
+  alert(ok ? 'প্যাকেজ আপডেট হয়েছে।' : (d2.message || 'হয়নি।'));
+  loadPackages();
+}
+
+async function loadModels(){
+  const box = document.getElementById('models');
+  const { ok, data } = await api('/api/admin/models', { headers: H() });
+  if(!ok){ box.textContent = data.message || 'মডেল তালিকা লোড করা যায়নি।'; return; }
+  box.innerHTML = data.models.map(m =>
+    `<div class="card rounded-2xl p-4"><b>${esc(m.name)}</b> <span class="muted">(${esc(m.type)} • ${m.credit_cost} ক্রেডিট)</span>
+     <div class="flex gap-2 mt-2">
+       <button onclick="setModel('${encodeURIComponent(m.id)}', ${!m.enabled})" class="px-3 py-1 rounded-full card text-xs">${m.enabled ? '⏸️ বন্ধ করুন' : '▶️ চালু করুন'}</button>
+       <button onclick="setModelCost('${encodeURIComponent(m.id)}')" class="px-3 py-1 rounded-full card text-xs">💳 খরচ বদলান</button>
+     </div></div>`).join('') +
+    (data.unverified_or_not_on_api && data.unverified_or_not_on_api.length ? `<p class="muted text-xs mt-2">⚠️ API-তে নেই / যাচাই হয়নি (চালু করা যাবে না): ${data.unverified_or_not_on_api.map(x => esc(x.name)).join(', ')}</p>` : '');
+}
+async function setModel(encId, enabled){
+  const { ok, data } = await api('/api/admin/models/' + encId, { method:'PUT', headers: H(), body: JSON.stringify({ enabled }) });
+  alert(ok ? (data.message || 'হয়েছে।') : (data.message || 'হয়নি।'));
+  loadModels();
+}
+async function setModelCost(encId){
+  const cost = prompt('নতুন ক্রেডিট খরচ (পূর্ণসংখ্যা, ০ বা বেশি):');
+  if(cost === null) return;
+  const { ok, data } = await api('/api/admin/models/' + encId, { method:'PUT', headers: H(), body: JSON.stringify({ credit_cost: parseInt(cost, 10) }) });
+  alert(ok ? (data.message || 'হয়েছে।') : (data.message || 'হয়নি।'));
+  loadModels();
+}
+
+async function loadReports(){
+  const box = document.getElementById('reports');
+  const { ok, data } = await api('/api/admin/reports?unresolved=true', { headers: H() });
+  if(!ok){ box.textContent = data.message || 'রিপোর্ট তালিকা লোড করা যায়নি।'; return; }
+  if(!data.reports.length){ box.textContent='অমীমাংসিত রিপোর্ট নেই।'; return; }
+  box.innerHTML = data.reports.map(r =>
+    `<div class="card rounded-2xl p-4"><b>${esc(r.type)} • ${esc(r.model_id)}</b> — রিপোর্ট: ${esc(r.reason)}
+     <br><span class="muted text-xs">মালিক: ${esc(r.owner_email)} • রিপোর্টার: ${esc(r.reporter_email)} • ${new Date(r.reported_at).toLocaleString('bn-BD')}</span>
+     <div class="flex gap-2 mt-2">
+       <button onclick="modGallery('${r.gallery_item_id}','hide')" class="px-3 py-1 rounded-full card text-xs">🙈 লুকান</button>
+       <button onclick="modGallery('${r.gallery_item_id}','restore')" class="px-3 py-1 rounded-full card text-xs">👁️ আবার দেখান</button>
+       <button onclick="resolveRep('${r.report_id}')" class="px-3 py-1 rounded-full card text-xs">✅ সমাধান হয়েছে</button>
+     </div></div>`).join('');
+}
+async function modGallery(id, action){
+  const { ok, data } = await api('/api/admin/gallery/' + id + '/moderate', { method:'POST', headers: H(), body: JSON.stringify({ action }) });
+  alert(ok ? (data.message || 'হয়েছে।') : (data.message || 'হয়নি।'));
+  loadReports();
+}
+async function resolveRep(id){
+  const { ok, data } = await api('/api/admin/reports/' + id + '/resolve', { method:'POST', headers: H(), body: JSON.stringify({}) });
+  alert(ok ? (data.message || 'হয়েছে।') : (data.message || 'হয়নি।'));
+  loadReports();
+}
+
+async function loadSettings(){
+  const box = document.getElementById('settings');
+  const { ok, data } = await api('/api/admin/settings', { headers: H() });
+  if(!ok){ box.textContent = data.message || 'সেটিংস লোড করা যায়নি।'; return; }
+  const keys = ['bkash_number','nagad_number','signup_bonus_credits','referral_bonus_credits','retention_days','payment_instructions_bn'];
+  box.innerHTML = keys.map(k =>
+    `<div class="card rounded-2xl p-4"><b>${esc(k)}</b>: <span class="muted">${esc(JSON.stringify(data.settings[k]))}</span>
+     <button onclick="editSetting('${k}')" class="ml-2 px-3 py-1 rounded-full card text-xs">বদলান</button></div>`).join('');
+}
+async function editSetting(key){
+  const val = prompt('নতুন মান (' + key + '):');
+  if(val === null) return;
+  let parsed = val;
+  if(['signup_bonus_credits','referral_bonus_credits','retention_days'].includes(key)) parsed = parseInt(val, 10);
+  const { ok, data } = await api('/api/admin/settings/' + key, { method:'PUT', headers: H(), body: JSON.stringify({ value: parsed }) });
+  alert(ok ? (data.message || 'হয়েছে।') : (data.message || 'হয়নি।'));
+  loadSettings();
+}
+
+(async function init(){
+  if(!token){ location.href='/login.html'; return; }
+  const { ok, data } = await api('/api/auth/me', { headers: H() });
+  if(!ok){ location.href='/login.html'; return; }
+  myRole = data.user.role;
+  if(!['admin','super_admin','moderator'].includes(myRole)){
+    document.getElementById('gate').textContent = '⛔ এই পাতাটি শুধু অ্যাডমিন/মডারেটরদের জন্য — আপনার রোল: ' + myRole;
+    return;
+  }
+  document.getElementById('gate').textContent = 'লগইন: ' + data.user.email + ' • রোল: ' + myRole + (myRole === 'moderator' ? ' (মডারেটর — শুধু গ্যালারি মডারেশন)' : '');
+  document.getElementById('app').classList.remove('hidden');
+  if(myRole === 'moderator'){
+    // Moderators only get the reports tab.
+    document.querySelectorAll('#tabs .tab').forEach(b => { if(b.dataset.tab !== 'reports') b.style.display = 'none'; });
+    showTab('reports', document.querySelector('[data-tab="reports"]'));
+  } else {
+    loadAnalytics();
+  }
+})();
+</script>
+</body>
+</html>

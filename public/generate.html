@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="bn" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>জেনারেট — Suman AI Studio</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  :root { --bg:#0f172a; --fg:#f1f5f9; --card:#1e293b; --muted:#94a3b8; }
+  html[data-theme="light"] { --bg:#f8fafc; --fg:#0f172a; --card:#ffffff; --muted:#475569; }
+  body { background:var(--bg); color:var(--fg); }
+  .card { background:var(--card); }
+  .muted { color:var(--muted); }
+  input, textarea, select { background:var(--bg); color:var(--fg); border:1px solid var(--muted); }
+  .model-pick { border:2px solid transparent; }
+  .model-pick.selected { border-color:#7c3aed; }
+</style>
+</head>
+<body class="min-h-screen font-sans">
+<header class="max-w-5xl mx-auto flex items-center justify-between px-4 py-4">
+  <a href="/" class="text-xl font-bold">🎬 Suman AI Studio</a>
+  <div class="flex gap-2">
+    <a href="/dashboard.html" class="px-3 py-1 rounded-full card text-sm">ড্যাশবোর্ড</a>
+    <button onclick="toggleTheme()" class="px-3 py-1 rounded-full card text-sm" id="themeBtn">☀️ Light</button>
+  </div>
+</header>
+<main class="max-w-3xl mx-auto px-4 pb-16">
+  <h2 class="text-2xl font-bold mt-4">✨ নতুন জেনারেশন</h2>
+  <p id="statusLine" class="muted text-sm mt-1">⏳ মডেলের তালিকা লোড হচ্ছে…</p>
+  <p id="hfLine" class="text-sm mt-2"></p>
+
+  <div class="card rounded-2xl p-6 mt-6">
+    <label class="text-sm font-semibold">১. ধরন বাছুন</label>
+    <select id="genType" class="w-full mt-1 px-3 py-2 rounded-xl" onchange="renderModels()">
+      <option value="text-to-image">Text-to-Image (লেখা থেকে ছবি)</option>
+      <option value="text-to-video">Text-to-Video (লেখা থেকে ভিডিও)</option>
+      <option value="image-to-video">Image-to-Video (ছবি থেকে ভিডিও)</option>
+    </select>
+
+    <label class="text-sm font-semibold block mt-5">২. AI মডেল বাছুন (শুধু চালু + যাচাই করা মডেল)</label>
+    <div id="modelList" class="grid md:grid-cols-2 gap-3 mt-2"></div>
+
+    <label class="text-sm font-semibold block mt-5">৩. প্রম্পট লিখুন</label>
+    <textarea id="prompt" rows="4" maxlength="2000" class="w-full mt-1 px-3 py-2 rounded-xl" placeholder="বাংলা বা ইংরেজিতে লিখুন — যেমন: ঢাকার রাস্তায় বৃষ্টির সন্ধ্যা, সিনেমাটিক আলো…"></textarea>
+    <p class="muted text-xs mt-1">সর্বোচ্চ ২০০০ অক্ষর।</p>
+
+    <div id="refUrlWrap" class="hidden">
+      <label class="text-sm font-semibold block mt-5">৪. রেফারেন্স ছবির URL (Image-to-Video-র জন্য আবশ্যক)</label>
+      <input id="refUrl" type="url" class="w-full mt-1 px-3 py-2 rounded-xl" placeholder="https://…/ছবির-লিংক.jpg">
+      <p class="muted text-xs mt-1">সরাসরি ফাইল আপলোড এখনো চালু হয়নি (Storage সংযুক্ত হয়নি) — আপাতত হোস্ট করা ছবির লিংক দিন।</p>
+    </div>
+
+    <label class="text-sm font-semibold block mt-5">৫. রেফারেন্স ছবি/ভিডিও ফাইল (ঐচ্ছিক — এখনো আপলোড হয় না)</label>
+    <input id="refFile" type="file" accept="image/*,video/*" class="w-full mt-1 px-3 py-2 rounded-xl text-sm">
+    <p class="muted text-xs mt-1">ফাইল বাছলে শুধু তার তথ্য যাচাই করা হবে — Supabase Storage সংযুক্ত না হওয়া পর্যন্ত আপলোড হবে না, সৎ বার্তা দেখাবে।</p>
+
+    <div class="card rounded-xl p-4 mt-5 text-sm">
+      <p>আনুমানিক খরচ: <b id="costLine">মডেল বাছুন</b></p>
+      <p class="muted">আপনার ব্যালেন্স: <b id="balanceLine">—</b> ক্রেডিট</p>
+      <p id="watermarkLine" class="muted"></p>
+    </div>
+
+    <p id="msg" class="text-sm mt-4 hidden"></p>
+    <button id="genBtn" onclick="submitGen()" class="w-full mt-4 px-6 py-3 rounded-full bg-violet-600 text-white font-semibold">জেনারেট করুন</button>
+    <p class="muted text-xs mt-3">খরচ সার্ভার থেকে হিসাব হয় — ব্রাউজার থেকে পাঠানো কোনো দাম বিশ্বাস করা হয় না। ডুপ্লিকেট সাবমিট ঠেকাতে বোতাম একবার চাপলেই লক হবে।</p>
+  </div>
+
+  <!-- Live generation status (polling) -->
+  <div id="jobBox" class="card rounded-2xl p-6 mt-6 hidden">
+    <h3 class="font-bold">🔄 জেনারেশনের অবস্থা</h3>
+    <p id="jobStatus" class="text-sm mt-2"></p>
+    <p id="jobMeta" class="muted text-xs mt-1"></p>
+    <div id="jobResult" class="mt-4 hidden"></div>
+    <div class="flex gap-2 mt-4">
+      <button id="cancelBtn" onclick="cancelGen()" class="px-4 py-2 rounded-full bg-red-600 text-white text-sm font-semibold">বাতিল করুন</button>
+      <a id="myCreationsLink" href="/dashboard.html" class="px-4 py-2 rounded-full card text-sm">My Creations দেখুন</a>
+    </div>
+  </div>
+</main>
+<script>
+let models = [], selected = null, currentGenId = null, pollTimer = null, pollCount = 0;
+const POLL_EVERY_MS = 5000, POLL_MAX = 120; // 5s করে, সর্বোচ্চ ১০ মিনিট
+function toggleTheme(){ const h=document.documentElement; const n=h.dataset.theme==='dark'?'light':'dark'; h.dataset.theme=n; localStorage.setItem('sas_theme', n); document.getElementById('themeBtn').textContent = n==='dark' ? '☀️ Light' : '🌙 Dark'; }
+(function(){ const t=localStorage.getItem('sas_theme'); if(t){ document.documentElement.dataset.theme=t; document.getElementById('themeBtn').textContent = t==='dark' ? '☀️ Light' : '🌙 Dark'; }
+  if(!localStorage.getItem('sas_token')) location.href='/login.html'; })();
+function authHeaders(extra){ return Object.assign({ Authorization: 'Bearer ' + localStorage.getItem('sas_token') }, extra || {}); }
+function show(text, ok){ const el=document.getElementById('msg'); el.classList.remove('hidden'); el.textContent=text; el.style.color = ok ? '#22c55e' : '#f87171'; }
+function pick(id){
+  selected = models.find(m=>m.id===id) || null;
+  document.querySelectorAll('.model-pick').forEach(el=> el.classList.toggle('selected', el.dataset.id===id));
+  document.getElementById('costLine').textContent = selected ? selected.credit_cost + ' ক্রেডিট' : 'মডেল বাছুন';
+}
+function renderModels(){
+  const type = document.getElementById('genType').value;
+  document.getElementById('refUrlWrap').classList.toggle('hidden', type !== 'image-to-video');
+  const list = models.filter(m=>m.type===type);
+  selected = null;
+  document.getElementById('costLine').textContent = 'মডেল বাছুন';
+  document.getElementById('modelList').innerHTML = list.length
+    ? list.map(x=>`<button type="button" data-id="${x.id}" onclick="pick('${x.id}')" class="model-pick card rounded-2xl p-4 text-left"><b>${x.name}</b><p class="muted text-sm">${x.type} • ${x.credit_cost} ক্রেডিট</p></button>`).join('')
+    : '<p class="muted">এই ধরনের কোনো মডেল এখন চালু নেই। অন্য ধরন বাছুন।</p>';
+}
+async function load(){
+  try{
+    const m = await (await fetch('/api/models')).json();
+    models = m.models || [];
+    document.getElementById('hfLine').textContent = m.higgsfield_configured ? '✅ Higgsfield সংযুক্ত' : '⚠️ Higgsfield এখনো সংযুক্ত হয়নি — জেনারেশন চালু হবে না যতক্ষণ মালিক API Key না বসান।';
+    document.getElementById('statusLine').textContent = models.length ? models.length + 'টি মডেল চালু আছে।' : 'কোনো মডেল চালু নেই।';
+    renderModels();
+    const token = localStorage.getItem('sas_token');
+    const me = await (await fetch('/api/auth/me', { headers:{ Authorization: 'Bearer ' + token } })).json();
+    if(me.user){
+      document.getElementById('balanceLine').textContent = me.user.credit_balance;
+      document.getElementById('watermarkLine').textContent = me.user.is_paid ? '✅ পেইড অ্যাকাউন্ট — ওয়াটারমার্ক ছাড়া।' : 'ℹ️ ফ্রি অ্যাকাউন্ট — তৈরি ফাইলে ওয়াটারমার্ক থাকবে।';
+    }
+  }catch(e){ document.getElementById('statusLine').textContent='❌ সার্ভারের সাথে সংযোগ হয়নি।'; }
+}
+function honestError(d, r){
+  if(r.status===402 || d.error==='INSUFFICIENT_CREDITS') return '❌ ক্রেডিট যথেষ্ট নয় — ' + (d.message || '') + ' প্যাকেজ কিনে ক্রেডিট যোগ করুন (Pricing পাতা দেখুন)।';
+  if(r.status===503 && d.error==='DB_NOT_CONFIGURED') return '❌ ডেটাবেস এখনো সংযুক্ত হয়নি — মালিককে Supabase সংযোগ করতে হবে।';
+  if(r.status===503 && d.error==='HIGGSFIELD_NOT_CONFIGURED') return '❌ Higgsfield সংযুক্ত হয়নি — মালিককে API Key বসাতে হবে। কোনো ক্রেডিট কাটা হয়নি।';
+  if(r.status===401) { location.href='/login.html'; return 'লগইন করতে হবে।'; }
+  return '❌ ' + (d.message || d.error || 'কিছু একটা ভুল হয়েছে।');
+}
+async function submitGen(){
+  const prompt = document.getElementById('prompt').value.trim();
+  if(!selected) return show('আগে একটি মডেল বাছুন।', false);
+  if(!prompt) return show('প্রম্পট লিখুন।', false);
+  if(prompt.length > 2000) return show('প্রম্পট ২০০০ অক্ষরের বেশি হতে পারবে না।', false);
+  const type = document.getElementById('genType').value;
+  const inputUrl = document.getElementById('refUrl').value.trim();
+  if(type==='image-to-video' && !inputUrl) return show('Image-to-Video-র জন্য রেফারেন্স ছবির URL দিন।', false);
+  stopPolling();
+  const btn = document.getElementById('genBtn'); btn.disabled = true; btn.textContent = 'পাঠানো হচ্ছে…';
+  try{
+    const r = await fetch('/api/generate', { method:'POST', headers: authHeaders({ 'Content-Type':'application/json' }), body: JSON.stringify({ model_id: selected.id, type, prompt, input_url: inputUrl || undefined }) });
+    const d = await r.json().catch(()=>({}));
+    if(!r.ok) return show(honestError(d, r), false);
+    const g = d.generation || {};
+    currentGenId = g.id;
+    show('✅ জেনারেশন জমা হয়েছে — তৈরি হচ্ছে…', true);
+    document.getElementById('jobBox').classList.remove('hidden');
+    document.getElementById('jobResult').classList.add('hidden');
+    document.getElementById('cancelBtn').style.display = '';
+    document.getElementById('jobMeta').textContent = 'ID: ' + g.id + ' • খরচ: ' + (d.credit_cost ?? g.credit_cost) + ' ক্রেডিট' + (d.balance_after !== undefined ? ' • বাকি ব্যালেন্স: ' + d.balance_after : '') + (d.watermark_required ? ' • ওয়াটারমার্ক থাকবে' : ' • ওয়াটারমার্ক ছাড়া');
+    if(d.balance_after !== undefined) document.getElementById('balanceLine').textContent = d.balance_after;
+    startPolling();
+  }catch(e){ show('সার্ভারের সাথে সংযোগ হয়নি।', false); }
+  finally{ btn.disabled = false; btn.textContent = 'জেনারেট করুন'; }
+}
+function stopPolling(){ if(pollTimer){ clearInterval(pollTimer); pollTimer = null; } }
+function startPolling(){
+  pollCount = 0;
+  document.getElementById('jobStatus').textContent = '⏳ তৈরি হচ্ছে… (প্রতি ৫ সেকেন্ডে অবস্থা দেখা হচ্ছে)';
+  pollTimer = setInterval(pollStatus, POLL_EVERY_MS);
+  pollStatus();
+}
+async function pollStatus(){
+  if(!currentGenId) return stopPolling();
+  pollCount++;
+  if(pollCount > POLL_MAX){ stopPolling(); document.getElementById('jobStatus').textContent = '⏳ এখনো শেষ হয়নি — My Creations থেকে পরে দেখুন।'; return; }
+  try{
+    const r = await fetch('/api/generations/' + encodeURIComponent(currentGenId) + '/status', { headers: authHeaders() });
+    const d = await r.json().catch(()=>({}));
+    if(!r.ok){ stopPolling(); return show(honestError(d, r), false); }
+    const g = d.generation || {};
+    const statusBn = { queued:'সারিতে আছে', in_progress:'তৈরি হচ্ছে…', completed:'✅ সম্পূর্ণ হয়েছে!', failed:'❌ ব্যর্থ হয়েছে', nsfw:'⚠️ কনটেন্ট ফিল্টারে আটকেছে', canceled:'বাতিল হয়েছে' }[g.status] || g.status;
+    document.getElementById('jobStatus').textContent = statusBn + (d.refunded ? ' — ক্রেডিট ফেরত দেওয়া হয়েছে।' : '');
+    if(g.status==='completed'){
+      stopPolling();
+      document.getElementById('cancelBtn').style.display = 'none';
+      const box = document.getElementById('jobResult');
+      box.classList.remove('hidden');
+      const url = g.result_url;
+      let inner = '<p class="text-sm">ফলাফল তৈরি!</p>';
+      if(url){
+        if(g.type==='text-to-image') inner += '<img src="' + url + '" alt="generated image" class="rounded-xl mt-2 max-w-full">';
+        else inner += '<video src="' + url + '" controls class="rounded-xl mt-2 max-w-full"></video>';
+        inner += '<p class="mt-2"><a class="underline" href="' + url + '" target="_blank" rel="noopener">ফাইলটি খুলুন / ডাউনলোড করুন</a></p>';
+      } else {
+        inner += '<p class="muted text-sm mt-2">ফাইলের লিংক পাওয়া যায়নি — My Creations থেকে দেখুন।</p>';
+      }
+      box.innerHTML = inner;
+      load(); // ব্যালেন্স আপডেট
+    } else if(g.status==='failed' || g.status==='nsfw' || g.status==='canceled'){
+      stopPolling();
+      document.getElementById('cancelBtn').style.display = 'none';
+      if(g.error_message) show('কারণ: ' + g.error_message, false);
+      load(); // ব্যালেন্স আপডেট (ফেরত থাকলে)
+    }
+  }catch(e){ /* নেটওয়ার্ক ছেদ — পরের পোলে আবার চেষ্টা হবে */ }
+}
+async function cancelGen(){
+  if(!currentGenId) return;
+  const btn = document.getElementById('cancelBtn'); btn.disabled = true; btn.textContent = 'বাতিল হচ্ছে…';
+  try{
+    const r = await fetch('/api/generations/' + encodeURIComponent(currentGenId) + '/cancel', { method:'POST', headers: authHeaders() });
+    const d = await r.json().catch(()=>({}));
+    if(!r.ok) return show(honestError(d, r), false);
+    stopPolling();
+    document.getElementById('jobStatus').textContent = 'বাতিল হয়েছে।' + (d.refunded ? ' ক্রেডিট ফেরত দেওয়া হয়েছে।' : '');
+    btn.style.display = 'none';
+    load();
+  }catch(e){ show('সার্ভারের সাথে সংযোগ হয়নি।', false); }
+  finally{ btn.disabled = false; btn.textContent = 'বাতিল করুন'; }
+}
+document.getElementById('refFile').addEventListener('change', async (e)=>{
+  const f = e.target.files[0];
+  if(!f) return;
+  // ফাইলটি পাঠানো হয় না — শুধু মেটাডেটা যাচাই; স্টোরেজ নেই বলে সার্ভার ৫০১ দেবে।
+  try{
+    const r = await fetch('/api/upload-reference', { method:'POST', headers: authHeaders({ 'Content-Type':'application/json' }), body: JSON.stringify({ filename: f.name, contentType: f.type, sizeBytes: f.size }) });
+    const d = await r.json().catch(()=>({}));
+    if(r.status===501 || d.error==='STORAGE_NOT_CONFIGURED') show('ফাইল বাছা হয়েছে: ' + f.name + ' — আপলোড এখনো চালু হয়নি (Storage সংযুক্ত হয়নি)। ফাইলটি আপলোড হয়নি।', false);
+    else if(!r.ok) show(honestError(d, r), false);
+    else show('ফাইল বাছা হয়েছে: ' + f.name, true);
+  }catch(err){ show('সার্ভারের সাথে সংযোগ হয়নি।', false); }
+});
+load();
+</script>
+</body>
+</html>

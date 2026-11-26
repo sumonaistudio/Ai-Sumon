@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="bn" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>রেজিস্টার — Suman AI Studio</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  :root { --bg:#0f172a; --fg:#f1f5f9; --card:#1e293b; --muted:#94a3b8; }
+  html[data-theme="light"] { --bg:#f8fafc; --fg:#0f172a; --card:#ffffff; --muted:#475569; }
+  body { background:var(--bg); color:var(--fg); }
+  .card { background:var(--card); }
+  .muted { color:var(--muted); }
+  input { background:var(--bg); color:var(--fg); border:1px solid var(--muted); }
+</style>
+</head>
+<body class="min-h-screen font-sans">
+<header class="max-w-5xl mx-auto flex items-center justify-between px-4 py-4">
+  <a href="/" class="text-xl font-bold">🎬 Suman AI Studio</a>
+  <div class="flex gap-2">
+    <button onclick="setLang('bn')" class="px-3 py-1 rounded-full bg-violet-600 text-white text-sm">বাংলা</button>
+    <button onclick="setLang('en')" class="px-3 py-1 rounded-full card text-sm">English</button>
+    <button onclick="toggleTheme()" class="px-3 py-1 rounded-full card text-sm" id="themeBtn">☀️ Light</button>
+  </div>
+</header>
+<main class="max-w-md mx-auto px-4 pb-16">
+  <div class="card rounded-2xl p-6 mt-6">
+    <h2 class="text-2xl font-bold" data-i18n="title">অ্যাকাউন্ট খুলুন</h2>
+    <p class="muted text-sm mt-1" data-i18n="sub">সাইনআপ করলেই একবারের ফ্রি স্টার্টার ক্রেডিট বোনাস পাবেন।</p>
+    <form id="regForm" class="mt-5 space-y-4">
+      <div><label class="text-sm font-semibold">নাম</label>
+        <input id="full_name" type="text" class="w-full mt-1 px-3 py-2 rounded-xl" placeholder="আপনার নাম"></div>
+      <div><label class="text-sm font-semibold">ইমেইল</label>
+        <input id="email" type="email" required class="w-full mt-1 px-3 py-2 rounded-xl" placeholder="you@example.com"></div>
+      <div><label class="text-sm font-semibold" data-i18n="pw">পাসওয়ার্ড (কমপক্ষে ৮ অক্ষর)</label>
+        <input id="password" type="password" required minlength="8" class="w-full mt-1 px-3 py-2 rounded-xl" placeholder="••••••••"></div>
+      <div><label class="text-sm font-semibold">রেফারেল কোড (যদি থাকে)</label>
+        <input id="referral_code" type="text" class="w-full mt-1 px-3 py-2 rounded-xl" placeholder="ঐচ্ছিক"></div>
+      <p id="msg" class="text-sm hidden"></p>
+      <button class="w-full px-6 py-3 rounded-full bg-violet-600 text-white font-semibold" data-i18n="btn">অ্যাকাউন্ট খুলুন</button>
+    </form>
+    <p class="text-sm mt-4">আগে থেকেই অ্যাকাউন্ট আছে? <a href="/login.html" class="text-violet-400 underline">লগইন করুন</a></p>
+    <p class="muted text-xs mt-3">একজন মানুষ একটাই ফ্রি বোনাস পাবেন — ডুপ্লিকেট অ্যাকাউন্ট ধরা পড়লে ব্যান হবে।</p>
+  </div>
+</main>
+<script>
+const T = { bn: { title:'অ্যাকাউন্ট খুলুন', sub:'সাইনআপ করলেই একবারের ফ্রি স্টার্টার ক্রেডিট বোনাস পাবেন।', pw:'পাসওয়ার্ড (কমপক্ষে ৮ অক্ষর)', btn:'অ্যাকাউন্ট খুলুন' },
+            en: { title:'Create an account', sub:'Sign up to get a one-time free starter credit bonus.', pw:'Password (at least 8 characters)', btn:'Create account' } };
+function setLang(l){ document.documentElement.lang=l; document.querySelectorAll('[data-i18n]').forEach(el=>{ el.textContent = T[l][el.dataset.i18n] || el.textContent; }); }
+function toggleTheme(){ const h=document.documentElement; const n=h.dataset.theme==='dark'?'light':'dark'; h.dataset.theme=n; localStorage.setItem('sas_theme', n); document.getElementById('themeBtn').textContent = n==='dark' ? '☀️ Light' : '🌙 Dark'; }
+(function(){ const t=localStorage.getItem('sas_theme'); if(t){ document.documentElement.dataset.theme=t; document.getElementById('themeBtn').textContent = t==='dark' ? '☀️ Light' : '🌙 Dark'; }
+  if(localStorage.getItem('sas_token')) location.href='/dashboard.html'; })();
+function show(text, ok){ const el=document.getElementById('msg'); el.classList.remove('hidden'); el.textContent=text; el.style.color = ok ? '#22c55e' : '#f87171'; }
+document.getElementById('regForm').addEventListener('submit', async (e)=>{
+  e.preventDefault();
+  const body = { full_name: document.getElementById('full_name').value.trim(), email: document.getElementById('email').value.trim(), password: document.getElementById('password').value, referral_code: document.getElementById('referral_code').value.trim() || undefined };
+  try{
+    const r = await fetch('/api/auth/register', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    const d = await r.json();
+    if(!r.ok){
+      const detail = d.errors ? Object.values(d.errors).join(' ') : (d.message || d.error);
+      return show(detail, false);
+    }
+    localStorage.setItem('sas_token', d.token);
+    show(`অ্যাকাউন্ট তৈরি হয়েছে! বোনাস: ${d.starter_bonus_credits} ক্রেডিট। ড্যাশবোর্ডে যাচ্ছি…`, true);
+    setTimeout(()=> location.href='/dashboard.html', 800);
+  }catch(err){ show('সার্ভারের সাথে সংযোগ হয়নি।', false); }
+});
+</script>
+</body>
+</html>

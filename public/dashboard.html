@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="bn" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ড্যাশবোর্ড — Suman AI Studio</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  :root { --bg:#0f172a; --fg:#f1f5f9; --card:#1e293b; --muted:#94a3b8; }
+  html[data-theme="light"] { --bg:#f8fafc; --fg:#0f172a; --card:#ffffff; --muted:#475569; }
+  body { background:var(--bg); color:var(--fg); }
+  .card { background:var(--card); }
+  .muted { color:var(--muted); }
+  .warn { background:#7c2d12; color:#fed7aa; }
+  .badge { display:inline-block; padding:2px 8px; border-radius:9999px; font-size:12px; }
+</style>
+</head>
+<body class="min-h-screen font-sans">
+<header class="max-w-5xl mx-auto flex items-center justify-between px-4 py-4">
+  <a href="/" class="text-xl font-bold">🎬 Suman AI Studio</a>
+  <div class="flex gap-2 items-center flex-wrap">
+    <button onclick="setLang('bn')" class="px-3 py-1 rounded-full bg-violet-600 text-white text-sm">বাংলা</button>
+    <button onclick="setLang('en')" class="px-3 py-1 rounded-full card text-sm">English</button>
+    <button onclick="toggleTheme()" class="px-3 py-1 rounded-full card text-sm" id="themeBtn">☀️ Light</button>
+    <button onclick="logout()" class="px-3 py-1 rounded-full card text-sm">লগআউট</button>
+  </div>
+</header>
+<main class="max-w-5xl mx-auto px-4 pb-16">
+  <h2 class="text-2xl font-bold mt-4" id="welcome">ড্যাশবোর্ড</h2>
+  <p id="statusLine" class="muted text-sm mt-1">⏳ প্রোফাইল লোড হচ্ছে…</p>
+
+  <section class="grid grid-cols-2 md:grid-cols-4 gap-3 mt-6">
+    <div class="card rounded-2xl p-4"><p class="muted text-sm">ক্রেডিট ব্যালেন্স</p><p class="text-2xl font-bold" id="credits">—</p></div>
+    <div class="card rounded-2xl p-4"><p class="muted text-sm">সাবস্ক্রিপশন</p><p class="text-lg font-bold" id="subStatus">—</p></div>
+    <div class="card rounded-2xl p-4"><p class="muted text-sm">রোল</p><p class="text-2xl font-bold" id="role">—</p></div>
+    <div class="card rounded-2xl p-4"><p class="muted text-sm">আমার রেফারেল কোড</p><p class="text-2xl font-bold" id="refCode">—</p></div>
+  </section>
+
+  <section class="mt-6 flex flex-wrap gap-3">
+    <a href="/generate.html" class="px-6 py-3 rounded-full bg-violet-600 text-white font-semibold">✨ নতুন জেনারেশন</a>
+    <a href="/payments.html" class="px-6 py-3 rounded-full card font-semibold">💳 ক্রেডিট কিনুন / পেমেন্ট</a>
+    <a href="/pricing.html" class="px-6 py-3 rounded-full card font-semibold">প্রাইসিং</a>
+    <a href="/gallery.html" class="px-6 py-3 rounded-full card font-semibold">🖼️ গ্যালারি</a>
+    <a href="/support.html" class="px-6 py-3 rounded-full card font-semibold">🛟 সাপোর্ট</a>
+    <a href="/admin.html" id="adminLink" class="px-6 py-3 rounded-full card font-semibold hidden">🛡️ অ্যাডমিন</a>
+  </section>
+
+  <section class="mt-10">
+    <h3 class="text-xl font-bold">🔔 নোটিফিকেশন <span id="unreadBadge" class="badge card hidden"></span></h3>
+    <div id="notifications" class="mt-3 space-y-2 text-sm">⏳ লোড হচ্ছে…</div>
+  </section>
+
+  <section class="mt-10">
+    <h3 class="text-xl font-bold">🤝 রেফারেল</h3>
+    <p class="muted text-sm mt-1">বন্ধুকে আপনার লিংক দিয়ে আমন্ত্রণ জানান — বন্ধুর প্রথম পেমেন্ট অ্যাডমিন অনুমোদন করলেই আপনি বোনাস ক্রেডিট পাবেন।</p>
+    <div id="referralBox" class="card rounded-2xl p-5 mt-3 text-sm">⏳ লোড হচ্ছে…</div>
+  </section>
+
+  <section class="mt-10">
+    <h3 class="text-xl font-bold">🖼️ আমার তৈরি জিনিস (My Creations)</h3>
+    <p class="muted text-sm mt-1">৩০ দিনের retention — মেয়াদ শেষ হওয়ার ৩ দিন আগে থেকে সতর্কবার্তা দেখানো হবে। আপনার জিনিস ডিফল্টে প্রাইভেট।</p>
+    <div class="flex gap-2 mt-3">
+      <select id="filterStatus" class="card rounded-full px-3 py-2 text-sm" onchange="loadCreations()">
+        <option value="">সব অবস্থা</option>
+        <option value="completed">সম্পূর্ণ</option>
+        <option value="in_progress">চলছে</option>
+        <option value="queued">অপেক্ষায়</option>
+        <option value="failed">ব্যর্থ</option>
+      </select>
+      <button onclick="loadCreations()" class="px-4 py-2 rounded-full card text-sm">🔄 রিফ্রেশ</button>
+    </div>
+    <div id="creations" class="mt-3 space-y-3 text-sm">⏳ লোড হচ্ছে…</div>
+    <div id="creationsPager" class="mt-3 flex gap-2"></div>
+  </section>
+
+  <section class="mt-10">
+    <h3 class="text-xl font-bold">🧾 ক্রেডিট লেনদেন (Ledger)</h3>
+    <div id="ledger" class="card rounded-2xl p-5 mt-3 text-sm muted">⏳ লোড হচ্ছে…</div>
+  </section>
+
+  <section class="mt-10">
+    <h3 class="text-xl font-bold">👤 প্রোফাইল</h3>
+    <div id="profile" class="card rounded-2xl p-5 mt-3 text-sm">—</div>
+  </section>
+</main>
+<script>
+let token = localStorage.getItem('sas_token');
+let creationsPage = 1;
+function setLang(l){ document.documentElement.lang=l; }
+function toggleTheme(){ const h=document.documentElement; const n=h.dataset.theme==='dark'?'light':'dark'; h.dataset.theme=n; localStorage.setItem('sas_theme', n); document.getElementById('themeBtn').textContent = n==='dark' ? '☀️ Light' : '🌙 Dark'; }
+(function(){ const t=localStorage.getItem('sas_theme'); if(t){ document.documentElement.dataset.theme=t; document.getElementById('themeBtn').textContent = t==='dark' ? '☀️ Light' : '🌙 Dark'; } })();
+function authHeaders(){ return { Authorization: 'Bearer ' + token }; }
+async function logout(){
+  try{ await fetch('/api/auth/logout', { method:'POST', headers: authHeaders() }); }catch(e){}
+  localStorage.removeItem('sas_token');
+  location.href='/login.html';
+}
+function esc(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function fmtDate(d){ try{ return new Date(d).toLocaleString('bn-BD'); }catch(e){ return d; } }
+
+async function loadNotifications(){
+  const box = document.getElementById('notifications');
+  try{
+    const r = await fetch('/api/notifications?limit=10', { headers: authHeaders() });
+    const d = await r.json();
+    if(!r.ok){ box.textContent = d.message || d.error || 'নোটিফিকেশন লোড করা যায়নি।'; return; }
+    const badge = document.getElementById('unreadBadge');
+    if(d.unread_count > 0){ badge.textContent = d.unread_count + 'টি অপঠিত'; badge.classList.remove('hidden'); }
+    else badge.classList.add('hidden');
+    if(!d.notifications.length){ box.innerHTML = '<div class="card rounded-2xl p-5 muted">কোনো নোটিফিকেশন নেই।</div>'; return; }
+    box.innerHTML = d.notifications.map(n =>
+      `<div class="card rounded-2xl p-4 ${n.is_read ? 'opacity-70' : ''}">
+        <div class="flex justify-between gap-2 flex-wrap"><b>${esc(n.title)}</b><span class="badge card">${esc(n.kind)}</span></div>
+        <p class="muted mt-1">${esc(n.body)}</p>
+        <p class="text-xs muted mt-1">${fmtDate(n.created_at)} ${n.is_read ? '• পড়া হয়েছে' : `• <button onclick="markRead('${n.id}')" class="text-violet-400 underline">পড়া হয়েছে বলে চিহ্নিত করুন</button>`}</p>
+      </div>`
+    ).join('');
+  }catch(e){ box.textContent='❌ সার্ভারের সাথে সংযোগ হয়নি।'; }
+}
+
+async function markRead(id){
+  try{
+    const r = await fetch('/api/notifications/' + id + '/read', { method:'POST', headers: authHeaders() });
+    if(r.ok) loadNotifications();
+  }catch(e){}
+}
+
+async function loadReferral(){
+  const box = document.getElementById('referralBox');
+  try{
+    const r = await fetch('/api/referrals/me', { headers: authHeaders() });
+    const d = await r.json();
+    if(!r.ok){ box.textContent = d.message || d.error || 'রেফারেল তথ্য লোড করা যায়নি।'; return; }
+    box.innerHTML =
+      `<p><b>আপনার কোড:</b> ${esc(d.referral_code || '—')}</p>` +
+      `<p class="mt-2 break-all"><b>লিংক:</b> ${esc(d.referral_link || '—')}</p>` +
+      `<p class="mt-2">আমন্ত্রিত বন্ধু: <b>${d.referred_count}</b> • বোনাস পেয়েছেন: <b>${d.bonuses_granted}</b> বার • মোট আয়: <b>${d.total_earned_credits}</b> ক্রেডিট</p>` +
+      `<button onclick="copyReferralLink()" class="mt-3 px-4 py-2 rounded-full bg-violet-600 text-white text-sm">📋 লিংক কপি করুন</button>
+       <span id="copyMsg" class="muted text-xs ml-2"></span>`;
+    window._referralLink = d.referral_link;
+  }catch(e){ box.textContent='❌ সার্ভারের সাথে সংযোগ হয়নি।'; }
+}
+
+function copyReferralLink(){
+  const link = window._referralLink || '';
+  if(!link) return;
+  const done = () => { const m = document.getElementById('copyMsg'); if(m) m.textContent = '✅ কপি হয়েছে!'; };
+  if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(link).then(done).catch(() => { prompt('লিংকটি কপি করুন:', link); }); }
+  else prompt('লিংকটি কপি করুন:', link);
+}
+
+async function loadCreations(){
+  const box = document.getElementById('creations');
+  const st = document.getElementById('filterStatus').value;
+  const q = new URLSearchParams({ page: creationsPage, limit: 10 });
+  if (st) q.set('status', st);
+  try{
+    const r = await fetch('/api/creations?' + q.toString(), { headers: authHeaders() });
+    const d = await r.json();
+    if(!r.ok){ box.textContent = d.message || d.error || 'My Creations লোড করা যায়নি।'; return; }
+    if(!d.creations.length){ box.innerHTML = '<div class="card rounded-2xl p-5 muted">এখনো কোনো তৈরি জিনিস নেই — <a class="text-violet-400 underline" href="/generate.html">প্রথমটি বানান</a>।</div>'; document.getElementById('creationsPager').innerHTML=''; return; }
+    box.innerHTML = d.creations.map(c => {
+      const warn = c.expired
+        ? '<span class="badge warn">⏰ মেয়াদ শেষ</span>'
+        : c.expiring_soon
+          ? `<span class="badge warn">⚠️ মেয়াদ শেষ হতে ${c.days_left} দিন বাকি — ডাউনলোড করে নিন</span>`
+          : `<span class="muted">মেয়াদ: ${c.days_left} দিন বাকি</span>`;
+      return `<div class="card rounded-2xl p-4">
+        <div class="flex flex-wrap justify-between gap-2">
+          <b>${esc(c.type)} • ${esc(c.model_id)}</b>
+          <span class="badge card">${esc(c.status)}</span>
+        </div>
+        <p class="muted mt-1">${esc((c.prompt || '').slice(0, 120))}</p>
+        <p class="mt-1 text-xs muted">তৈরি: ${fmtDate(c.created_at)} • খরচ: ${c.credit_cost} ক্রেডিট • ${warn}</p>
+        ${c.status === 'failed' && c.error_message ? `<p class="text-red-400 text-xs mt-1">ব্যর্থ: ${esc(c.error_message)}</p>` : ''}
+        <div class="flex gap-2 mt-3">
+          ${c.has_result && !c.expired ? `<button onclick="downloadOne('${c.id}')" class="px-3 py-1 rounded-full bg-violet-600 text-white text-xs">⬇️ ডাউনলোড</button>` : ''}
+          <button onclick="deleteOne('${c.id}')" class="px-3 py-1 rounded-full card text-xs">🗑️ মুছুন</button>
+        </div>
+      </div>`;
+    }).join('');
+    document.getElementById('creationsPager').innerHTML =
+      (d.page > 1 ? `<button onclick="creationsPage--;loadCreations()" class="px-3 py-1 rounded-full card text-sm">← আগের পাতা</button>` : '') +
+      (d.page < d.total_pages ? `<button onclick="creationsPage++;loadCreations()" class="px-3 py-1 rounded-full card text-sm">পরের পাতা →</button>` : '') +
+      `<span class="muted text-sm self-center">পাতা ${d.page}/${d.total_pages} • মোট ${d.total}</span>`;
+  }catch(e){ box.textContent='❌ সার্ভারের সাথে সংযোগ হয়নি।'; }
+}
+
+async function downloadOne(id){
+  try{
+    const r = await fetch('/api/creations/' + id + '/download', { headers: authHeaders() });
+    if (r.redirected && r.url) { window.open(r.url, '_blank'); return; }
+    const d = await r.json().catch(() => ({}));
+    alert(d.message || 'ডাউনলোড করা যায়নি।');
+  }catch(e){ alert('সার্ভারের সাথে সংযোগ হয়নি।'); }
+}
+
+async function deleteOne(id){
+  if(!confirm('এই তৈরি জিনিসটি মুছে ফেলবেন? (ক্রেডিট ফেরত দেওয়া হবে না)')) return;
+  try{
+    const r = await fetch('/api/creations/' + id, { method:'DELETE', headers: authHeaders() });
+    const d = await r.json();
+    if(!r.ok){ alert(d.message || 'মোছা যায়নি।'); return; }
+    loadCreations();
+  }catch(e){ alert('সার্ভারের সাথে সংযোগ হয়নি।'); }
+}
+
+async function loadLedger(){
+  const box = document.getElementById('ledger');
+  try{
+    const r = await fetch('/api/credits?limit=10', { headers: authHeaders() });
+    const d = await r.json();
+    if(!r.ok){ box.textContent = d.message || d.error || 'লেজার লোড করা যায়নি।'; return; }
+    if(!d.entries.length){ box.textContent = 'এখনো কোনো লেনদেন নেই।'; return; }
+    box.innerHTML = d.entries.map(e =>
+      `<p>${e.amount > 0 ? '+' : ''}${e.amount} ক্রেডিট • ${esc(e.reason)} • ব্যালেন্স: ${e.balance_after} • ${fmtDate(e.created_at)}</p>`
+    ).join('');
+  }catch(e){ box.textContent='❌ সার্ভারের সাথে সংযোগ হয়নি।'; }
+}
+
+async function load(){
+  if(!token){ location.href='/login.html'; return; }
+  try{
+    const r = await fetch('/api/auth/me', { headers: authHeaders() });
+    const d = await r.json();
+    if(!r.ok){ localStorage.removeItem('sas_token'); location.href='/login.html'; return; }
+    const u = d.user;
+    document.getElementById('welcome').textContent = 'স্বাগতম, ' + (u.full_name || u.email);
+    document.getElementById('statusLine').textContent = u.email + ' • সদস্য হয়েছেন: ' + (u.created_at ? new Date(u.created_at).toLocaleDateString('bn-BD') : '—');
+    document.getElementById('credits').textContent = u.credit_balance;
+    document.getElementById('role').textContent = u.role;
+    document.getElementById('refCode').textContent = u.referral_code;
+    if (['admin','super_admin','moderator'].includes(u.role)) document.getElementById('adminLink').classList.remove('hidden');
+    document.getElementById('profile').innerHTML =
+      `<p><b>ইমেইল:</b> ${esc(u.email)}</p><p><b>নাম:</b> ${esc(u.full_name || '—')}</p>` +
+      `<p><b>ভাষা:</b> ${esc(u.language)} • <b>থিম:</b> ${esc(u.theme)}</p>` +
+      `<p><b>পেইড (ওয়াটারমার্ক-মুক্ত):</b> ${u.is_paid ? 'হ্যাঁ' : 'না'}</p>` +
+      `<p><b>ইমেইল যাচাই:</b> ${u.email_verified ? 'হয়েছে' : 'হয়নি'}</p>`;
+  }catch(e){ document.getElementById('statusLine').textContent='❌ সার্ভারের সাথে সংযোগ হয়নি।'; }
+  try{
+    const r = await fetch('/api/subscription/me', { headers: authHeaders() });
+    const d = await r.json();
+    document.getElementById('subStatus').textContent = d.subscription
+      ? `${d.subscription.name_bn} • শেষ: ${new Date(d.subscription.ends_at).toLocaleDateString('bn-BD')}`
+      : 'ফ্রি (কোনো সাবস্ক্রিপশন নেই)';
+  }catch(e){ document.getElementById('subStatus').textContent='—'; }
+  loadCreations();
+  loadLedger();
+  loadNotifications();
+  loadReferral();
+}
+load();
+</script>
+</body>
+</html>

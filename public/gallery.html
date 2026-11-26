@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="bn" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>গ্যালারি — Suman AI Studio</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>
+  :root { --bg:#0f172a; --fg:#f1f5f9; --card:#1e293b; --muted:#94a3b8; }
+  html[data-theme="light"] { --bg:#f8fafc; --fg:#0f172a; --card:#ffffff; --muted:#475569; }
+  body { background:var(--bg); color:var(--fg); }
+  .card { background:var(--card); }
+  .muted { color:var(--muted); }
+  input, textarea { background:var(--bg); color:var(--fg); border:1px solid var(--muted); }
+</style>
+</head>
+<body class="min-h-screen font-sans">
+<header class="max-w-5xl mx-auto flex items-center justify-between px-4 py-4">
+  <a href="/" class="text-xl font-bold">🎬 Suman AI Studio</a>
+  <div class="flex gap-2 items-center flex-wrap">
+    <a href="/dashboard.html" class="px-3 py-1 rounded-full card text-sm">ড্যাশবোর্ড</a>
+    <a href="/generate.html" class="px-3 py-1 rounded-full bg-violet-600 text-white text-sm">✨ বানান</a>
+    <button onclick="toggleTheme()" class="px-3 py-1 rounded-full card text-sm" id="themeBtn">☀️ Light</button>
+  </div>
+</header>
+<main class="max-w-5xl mx-auto px-4 pb-16">
+  <h2 class="text-2xl font-bold mt-4">🖼️ পাবলিক গ্যালারি</h2>
+  <!--
+    PRIVACY NOTE: this page only ever calls GET /api/gallery, which the
+    server restricts to is_public = TRUE AND hidden_by_moderation = FALSE
+    items. Private creations are never listed here and never fetched.
+    Like / comment / report need a login — without a token the page
+    says so honestly instead of pretending the action worked.
+  -->
+  <p class="muted text-sm mt-1">শুধু সেই কাজগুলোই এখানে দেখা যায় যা তাদের মালিক নিজে প্রকাশ করেছেন। আপনার জিনিস ডিফল্টে প্রাইভেট — ড্যাশবোর্ড থেকে নিজে প্রকাশ না করলে এখানে আসবে না।</p>
+  <p id="statusLine" class="muted text-sm mt-2">⏳ গ্যালারি লোড হচ্ছে…</p>
+  <div id="gallery" class="grid md:grid-cols-2 gap-4 mt-4"></div>
+  <div id="pager" class="mt-4 flex gap-2 items-center"></div>
+  <div id="commentsBox" class="card rounded-2xl p-5 mt-6 hidden">
+    <h3 class="font-bold">💬 মন্তব্য</h3>
+    <div id="commentsList" class="mt-3 space-y-2 text-sm"></div>
+    <textarea id="commentText" rows="2" maxlength="500" class="w-full mt-3 px-3 py-2 rounded-xl" placeholder="মন্তব্য লিখুন (সর্বোচ্চ ৫০০ অক্ষর)…"></textarea>
+    <button onclick="submitComment()" class="mt-2 px-4 py-2 rounded-full bg-violet-600 text-white text-sm">মন্তব্য পাঠান</button>
+    <p id="commentMsg" class="text-sm mt-2 muted"></p>
+  </div>
+</main>
+<script>
+let token = localStorage.getItem('sas_token');
+let page = 1, currentItemId = null;
+function toggleTheme(){ const h=document.documentElement; const n=h.dataset.theme==='dark'?'light':'dark'; h.dataset.theme=n; localStorage.setItem('sas_theme', n); document.getElementById('themeBtn').textContent = n==='dark' ? '☀️ Light' : '🌙 Dark'; }
+(function(){ const t=localStorage.getItem('sas_theme'); if(t){ document.documentElement.dataset.theme=t; document.getElementById('themeBtn').textContent = t==='dark' ? '☀️ Light' : '🌙 Dark'; } })();
+function esc(s){ return String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function authHeaders(){ return token ? { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' }; }
+function needLogin(){ alert('এই কাজের জন্য লগইন লাগবে — আগে লগইন করুন।'); location.href='/login.html'; }
+
+async function load(){
+  const box = document.getElementById('gallery');
+  try{
+    const r = await fetch('/api/gallery?page=' + page + '&limit=12', { headers: token ? { Authorization: 'Bearer ' + token } : {} });
+    const d = await r.json();
+    if(!r.ok){ document.getElementById('statusLine').textContent = d.message || d.error || 'গ্যালারি লোড করা যায়নি।'; box.innerHTML=''; return; }
+    document.getElementById('statusLine').textContent = d.total ? `মোট ${d.total}টি প্রকাশিত কাজ` : 'এখনো কেউ কিছু প্রকাশ করেননি।';
+    if(!d.items.length){ box.innerHTML = '<div class="card rounded-2xl p-5 muted">গ্যালারি এখনো খালি — প্রথম কাজটি প্রকাশ করুন।</div>'; document.getElementById('pager').innerHTML=''; return; }
+    box.innerHTML = d.items.map(it => `
+      <article class="card rounded-2xl overflow-hidden">
+        ${it.result_url ? `<img src="${esc(it.result_url)}" alt="${esc((it.prompt || '').slice(0,80))}" class="w-full max-h-80 object-cover" loading="lazy">` : '<div class="p-5 muted text-sm">ফাইল নেই</div>'}
+        <div class="p-4">
+          <p class="text-sm"><b>${esc(it.type)}</b> • ${esc(it.model_id)}</p>
+          <p class="muted text-sm mt-1">${esc((it.prompt || '').slice(0, 140))}</p>
+          <p class="muted text-xs mt-1">👤 ${esc(it.owner_name || 'অজানা')} • ❤️ ${it.likes_count} • 💬 ${it.comments_count}</p>
+          <div class="flex gap-2 mt-3 flex-wrap">
+            <button onclick="likeOne('${it.id}', this)" class="px-3 py-1 rounded-full ${it.liked_by_me ? 'bg-violet-600 text-white' : 'card'} text-xs">${it.liked_by_me ? '❤️ লাইক দেওয়া' : '🤍 লাইক'}</button>
+            <button onclick="showComments('${it.id}')" class="px-3 py-1 rounded-full card text-xs">💬 মন্তব্য দেখুন</button>
+            <button onclick="reportOne('${it.id}')" class="px-3 py-1 rounded-full card text-xs">🚩 রিপোর্ট</button>
+          </div>
+        </div>
+      </article>`).join('');
+    document.getElementById('pager').innerHTML =
+      (d.page > 1 ? `<button onclick="page--;load()" class="px-3 py-1 rounded-full card text-sm">← আগের পাতা</button>` : '') +
+      (d.page < d.total_pages ? `<button onclick="page++;load()" class="px-3 py-1 rounded-full card text-sm">পরের পাতা →</button>` : '') +
+      `<span class="muted text-sm self-center">পাতা ${d.page}/${d.total_pages}</span>`;
+  }catch(e){ document.getElementById('statusLine').textContent='❌ সার্ভারের সাথে সংযোগ হয়নি।'; }
+}
+
+async function likeOne(id, btn){
+  if(!token) return needLogin();
+  try{
+    const r = await fetch('/api/gallery/' + id + '/like', { method:'POST', headers: authHeaders() });
+    const d = await r.json();
+    if(!r.ok){ alert(d.message || 'লাইক করা যায়নি।'); return; }
+    load();
+  }catch(e){ alert('সার্ভারের সাথে সংযোগ হয়নি।'); }
+}
+
+async function showComments(id){
+  currentItemId = id;
+  document.getElementById('commentsBox').classList.remove('hidden');
+  document.getElementById('commentsBox').scrollIntoView({ behavior:'smooth' });
+  const list = document.getElementById('commentsList');
+  list.textContent = '⏳ লোড হচ্ছে…';
+  try{
+    const r = await fetch('/api/gallery/' + id + '/comments');
+    const d = await r.json();
+    if(!r.ok){ list.textContent = d.message || 'মন্তব্য লোড করা যায়নি।'; return; }
+    list.innerHTML = d.comments.length
+      ? d.comments.map(c => `<p><b>${esc(c.author_name || 'অজানা')}</b>: ${esc(c.body)}</p>`).join('')
+      : '<p class="muted">এখনো কোনো মন্তব্য নেই।</p>';
+  }catch(e){ list.textContent='❌ সার্ভারের সাথে সংযোগ হয়নি।'; }
+}
+
+async function submitComment(){
+  if(!token) return needLogin();
+  const body = document.getElementById('commentText').value.trim();
+  const msg = document.getElementById('commentMsg');
+  if(!body){ msg.textContent='মন্তব্য লিখুন।'; return; }
+  try{
+    const r = await fetch('/api/gallery/' + currentItemId + '/comments', { method:'POST', headers: authHeaders(), body: JSON.stringify({ body }) });
+    const d = await r.json();
+    msg.textContent = d.message || d.error || '';
+    if(r.ok){ document.getElementById('commentText').value=''; showComments(currentItemId); load(); }
+  }catch(e){ msg.textContent='সার্ভারের সাথে সংযোগ হয়নি।'; }
+}
+
+async function reportOne(id){
+  if(!token) return needLogin();
+  const reason = prompt('কেন রিপোর্ট করছেন? (কারণ লিখুন)');
+  if(!reason) return;
+  try{
+    const r = await fetch('/api/gallery/' + id + '/report', { method:'POST', headers: authHeaders(), body: JSON.stringify({ reason }) });
+    const d = await r.json();
+    alert(d.message || d.error || '');
+  }catch(e){ alert('সার্ভারের সাথে সংযোগ হয়নি।'); }
+}
+load();
+</script>
+</body>
+</html>
