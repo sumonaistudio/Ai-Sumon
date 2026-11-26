@@ -1,0 +1,23 @@
+{
+  "name": "suman-ai-studio",
+  "version": "1.0.0-beta",
+  "description": "Suman AI Studio — AI Image & Video Generation SaaS (1.0.0-beta: code-complete, deployment pending)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "migrate": "node db/run-migrations.js",
+    "test": "node test/auth-isolated.test.js && node test/credits-payments.test.js && node test/generate-gallery.test.js && node test/phase9.test.js && node test/security.test.js"
+  },
+  "engines": { "node": ">=20" },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.19.2",
+    "express-rate-limit": "^7.4.0",
+    "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.12.0"
+  }
+}

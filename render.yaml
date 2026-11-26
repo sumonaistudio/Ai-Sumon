@@ -1,0 +1,19 @@
+# Render Blueprint — GitHub-এ কোড তুলে Render-এ New → Blueprint করলেই হবে।
+services:
+  - type: web
+    name: suman-ai-studio
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: node server.js
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # নিচেরগুলো Render Dashboard → Environment-এ হাতে বসাতে হবে (সিক্রেট কখনো কোডে নয়):
+      # - key: DATABASE_URL
+      #   sync: false
+      # - key: JWT_SECRET
+      #   sync: false
+      # - key: HIGGSFIELD_API_KEY
+      #   sync: false
