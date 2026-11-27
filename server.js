@@ -15,7 +15,7 @@
 //   models, content, gallery moderation, analytics, settings.
 // Phase 8: Higgsfield generation flow — submit/status/cancel, credit
 //   deduction in the same transaction as the job row, one-time refund
-//   on failure, watermark flag for free users, upload 501 stub.
+//   on failure, watermark flag for free users, Storage signed-upload.
 // Phase 9: gallery, referrals, notifications, support, templates.
 // Phase 10: security helpers + self-audit endpoint + testing docs.
 // Phase 11: static caching, mobile/viewport audit.
@@ -199,6 +199,7 @@ app.post('/api/generate', auth.requireAuth, generate.generateRateLimiter, genera
 app.get('/api/generations/:id/status', auth.requireAuth, generate.checkStatus);
 app.post('/api/generations/:id/cancel', auth.requireAuth, generate.cancelGeneration);
 app.post('/api/upload-reference', auth.requireAuth, generate.uploadRateLimiter, generate.uploadReference);
+app.post('/api/upload-reference/confirm', auth.requireAuth, generate.uploadRateLimiter, generate.confirmUploadReference);
 
 app.use((req, res) => res.status(404).json({ error: 'NOT_FOUND', message: 'Route not found' }));
 app.use((err, req, res, next) => {

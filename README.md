@@ -35,12 +35,21 @@
 
 ## ৩ক. ধাপ ২ক — Google Login (পরে, ঐচ্ছিক)
 
-Google Login এখনো কোডে চালু হয়নি — ইচ্ছাকৃতভাবে 501 stub রাখা হয়েছে, কারণ এতে মালিকের Google Cloud সেটআপ লাগে:
+Google Login-এর কোড লেখা আছে (`server/google-oauth.js` + লগইন পাতার Google বোতাম) — শুধু মালিকের Google Cloud সেটআপ বাকি:
 1. https://console.cloud.google.com/apis/credentials-এ প্রজেক্ট বানান।
 2. **Create Credentials → OAuth client ID → Web application** বানান।
-3. Authorized redirect URI-তে আপনার সাইটের ঠিকানা + `/api/auth/google/callback` বসান (যেমন `https://suman-ai-studio.onrender.com/api/auth/google/callback`)।
+3. Authorized redirect URI-তে আপনার সাইটের ঠিকানা + `/api/auth/google/callback` বসান (যেমন `https://ai-sumon.onrender.com/api/auth/google/callback`)।
 4. Client ID ও Client Secret Render Environment-এ `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` হিসেবে বসান।
-5. তারপর Google লগইনের কোড লেখা হবে — তার আগে `/api/auth/google` 501 `GOOGLE_OAUTH_NOT_CONFIGURED` দেবে, ভুয়া লগইন নয়।
+5. Render-এ Deploy/Restart দিন — তারপর লগইন পাতায় Google বোতাম কাজ করবে। Client ID/Secret না বসানো পর্যন্ত `/api/auth/google` 501 `GOOGLE_OAUTH_NOT_CONFIGURED` দেবে, ভুয়া লগইন নয়।
+
+## ৩খ. ধাপ ২খ — ছবি আপলোড / Storage (Supabase, ফ্রি)
+
+রেফারেন্স ছবি/ভিডিও আপলোডের কোড লেখা আছে (`server/storage.js` + Generate পাতার ফাইল বাছাই) — শুধু মালিকের Supabase সেটআপ বাকি:
+1. https://supabase.com/dashboard-এ একই **AiSumon** প্রজেক্ট খুলুন।
+2. বামে **Storage** → **New bucket** → নাম `references`, **Private** রাখুন (Public নয়) → Create।
+3. **Settings → API** থেকে **service_role key** (Secret) কপি করুন — এটা চ্যাটে বা GitHub-এ দেবেন না।
+4. Render Environment-এ বসান: `SUPABASE_URL` = `https://lskmblldgeqdzrvdazbv.supabase.co`, `SUPABASE_SERVICE_ROLE_KEY` = কপি করা Secret। Save / Redeploy দিন।
+5. যাচাই: Generate পাতায় ফাইল বেছে আপলোড করুন — লিংকটা রেফারেন্স URL-এর ঘরে বসে গেলে ঠিক আছে। Key না বসানো পর্যন্ত `/api/upload-reference` 501 `STORAGE_NOT_CONFIGURED` দেবে, ভুয়া আপলোড নয়। ফাইল সরাসরি Supabase-এ যায়, Render দিয়ে নয়; ডাউনলোড লিংক ৭ দিন চলে।
 
 ## ৪. ধাপ ৩ — Render-এ চালু করা (ফ্রি)
 
@@ -51,10 +60,10 @@ Google Login এখনো কোডে চালু হয়নি — ইচ�
    - `DATABASE_URL` = ধাপ ২-এর connection string
    - `JWT_SECRET` = লম্বা এলোমেলো একটি লেখা (৩২+ অক্ষর, নিজে বানান, কাউকে দেবেন না)
    - `NODE_ENV` = `production`
-   - `PUBLIC_URL` = আপনার Render ঠিকানা (যেমন `https://suman-ai-studio.onrender.com`)
+   - `PUBLIC_URL` = আপনার Render ঠিকানা (যেমন `https://ai-sumon.onrender.com`)
 5. Deploy শেষে `https://<আপনার-ঠিকানা>/api/health` খুলে দেখুন — `database: connected` আসতে হবে।
 
-> ⚠️ **Render ফ্রি-র আসল সীমা:** ১৫ মিনিট কেউ না এলে সার্ভার ঘুমিয়ে যায়, পরের ভিজিটে ~১ মিনিট লাগে। ফাইল সিস্টেম অস্থায়ী — আপলোড করা ফাইল হারিয়ে যাবে, তাই আসল ফাইল Supabase Storage-এ রাখতে হবে (এখনো চালু হয়নি — 501)।
+> ⚠️ **Render ফ্রি-র আসল সীমা:** ১৫ মিনিট কেউ না এলে সার্ভার ঘুমিয়ে যায়, পরের ভিজিটে ~১ মিনিট লাগে। ফাইল সিস্টেম অস্থায়ী — আপলোড করা ফাইল হারিয়ে যাবে, তাই আসল ফাইল Supabase Storage-এ রাখতে হবে (কোড লেখা আছে — ধাপ ২খ দেখুন; Key না বসানো পর্যন্ত 501)।
 
 ## ৫. ধাপ ৪ — প্রথম Super Admin বানানো
 
@@ -97,7 +106,7 @@ node server.js         # http://localhost:3000 খুলুন
 | 1 | বিশ্লেষণ + আর্কিটেকচার + স্ক্যাফোল্ড | ✅ |
 | 2 | সিড ডেটা + মাইগ্রেশন রানার | ✅ |
 | 3 | ফ্রন্টএন্ড (লগইন/রেজিস্টার/ড্যাশবোর্ড/জেনারেট) | ✅ |
-| 4 | অথ (bcrypt, JWT, রিসেট; Google 501 stub) | ✅ |
+| 4 | অথ (bcrypt, JWT, রিসেট; Google OAuth কোডসহ — Client ID/Secret বসানো বাকি) | ✅ |
 | 5 | My Creations + ৩০ দিনের retention | ✅ |
 | 6 | ক্রেডিট লেজার + bKash/Nagad ম্যানুয়াল পেমেন্ট | ✅ |
 | 7 | অ্যাডমিন ড্যাশবোর্ড (রোল-ভিত্তিক) | ✅ |
