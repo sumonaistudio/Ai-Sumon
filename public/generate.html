@@ -47,12 +47,12 @@
     <div id="refUrlWrap" class="hidden">
       <label class="text-sm font-semibold block mt-5">৪. রেফারেন্স ছবির URL (Image-to-Video-র জন্য আবশ্যক)</label>
       <input id="refUrl" type="url" class="w-full mt-1 px-3 py-2 rounded-xl" placeholder="https://…/ছবির-লিংক.jpg">
-      <p class="muted text-xs mt-1">সরাসরি ফাইল আপলোড এখনো চালু হয়নি (Storage সংযুক্ত হয়নি) — আপাতত হোস্ট করা ছবির লিংক দিন।</p>
+      <p class="muted text-xs mt-1">ফাইল বাছলে সরাসরি Supabase Storage-এ আপলোড হবে — আপলোড শেষে লিংকটা রেফারেন্স URL-এর ঘরে বসে যাবে।</p>
     </div>
 
-    <label class="text-sm font-semibold block mt-5">৫. রেফারেন্স ছবি/ভিডিও ফাইল (ঐচ্ছিক — এখনো আপলোড হয় না)</label>
+    <label class="text-sm font-semibold block mt-5">৫. রেফারেন্স ছবি/ভিডিও ফাইল (ঐচ্ছিক)</label>
     <input id="refFile" type="file" accept="image/*,video/*" class="w-full mt-1 px-3 py-2 rounded-xl text-sm">
-    <p class="muted text-xs mt-1">ফাইল বাছলে শুধু তার তথ্য যাচাই করা হবে — Supabase Storage সংযুক্ত না হওয়া পর্যন্ত আপলোড হবে না, সৎ বার্তা দেখাবে।</p>
+    <p class="muted text-xs mt-1">ফাইল বাছলে সরাসরি Supabase Storage-এ আপলোড হবে (সর্বোচ্চ ৫০ MB) — Storage সংযুক্ত না থাকলে সৎ বার্তা দেখাবে, ফাইল আপলোড হবে না।</p>
 
     <div class="card rounded-xl p-4 mt-5 text-sm">
       <p>আনুমানিক খরচ: <b id="costLine">মডেল বাছুন</b></p>
@@ -207,13 +207,24 @@ async function cancelGen(){
 document.getElementById('refFile').addEventListener('change', async (e)=>{
   const f = e.target.files[0];
   if(!f) return;
-  // ফাইলটি পাঠানো হয় না — শুধু মেটাডেটা যাচাই; স্টোরেজ নেই বলে সার্ভার ৫০১ দেবে।
+  // ধাপ ১: মেটাডেটা পাঠিয়ে সই করা আপলোড লিংক নিন।
+  show('আপলোড লিংক তৈরি হচ্ছে…', true);
   try{
     const r = await fetch('/api/upload-reference', { method:'POST', headers: authHeaders({ 'Content-Type':'application/json' }), body: JSON.stringify({ filename: f.name, contentType: f.type, sizeBytes: f.size }) });
     const d = await r.json().catch(()=>({}));
-    if(r.status===501 || d.error==='STORAGE_NOT_CONFIGURED') show('ফাইল বাছা হয়েছে: ' + f.name + ' — আপলোড এখনো চালু হয়নি (Storage সংযুক্ত হয়নি)। ফাইলটি আপলোড হয়নি।', false);
-    else if(!r.ok) show(honestError(d, r), false);
-    else show('ফাইল বাছা হয়েছে: ' + f.name, true);
+    if(r.status===501 || d.error==='STORAGE_NOT_CONFIGURED') return show('ফাইল বাছা হয়েছে: ' + f.name + ' — আপলোড এখনো চালু হয়নি (Storage সংযুক্ত হয়নি)। ফাইলটি আপলোড হয়নি।', false);
+    if(!r.ok || !d.upload_url) return show(honestError(d, r), false);
+    // ধাপ ২: ফাইলটি সরাসরি Supabase Storage-এ পাঠান (সার্ভার দিয়ে নয়)।
+    show('ফাইল আপলোড হচ্ছে…', true);
+    const up = await fetch(d.upload_url, { method:'PUT', headers: { 'Content-Type': f.type }, body: f });
+    if(!up.ok) return show('আপলোড হয়নি — আবার চেষ্টা করুন।', false);
+    // ধাপ ৩: আপলোড শেষ জানিয়ে সই করা ডাউনলোড লিংক নিন।
+    const c = await fetch('/api/upload-reference/confirm', { method:'POST', headers: authHeaders({ 'Content-Type':'application/json' }), body: JSON.stringify({ path: d.path, filename: f.name, contentType: f.type, sizeBytes: f.size }) });
+    const cd = await c.json().catch(()=>({}));
+    if(!c.ok || !cd.url) return show(honestError(cd, c), false);
+    document.getElementById('refUrlWrap').classList.remove('hidden');
+    document.getElementById('refUrl').value = cd.url;
+    show('ফাইল আপলোড হয়েছে: ' + f.name + ' — লিংকটা রেফারেন্স URL-এর ঘরে বসে গেছে (৭ দিন চলবে)।', true);
   }catch(err){ show('সার্ভারের সাথে সংযোগ হয়নি।', false); }
 });
 load();
