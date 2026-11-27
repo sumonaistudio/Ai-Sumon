@@ -7,7 +7,7 @@
     "start": "node server.js",
     "dev": "node server.js",
     "migrate": "node db/run-migrations.js",
-    "test": "node test/auth-isolated.test.js && node test/credits-payments.test.js && node test/generate-gallery.test.js && node test/phase9.test.js && node test/security.test.js"
+    "test": "node test/auth-isolated.test.js && node test/credits-payments.test.js && node test/generate-gallery.test.js && node test/phase9.test.js && node test/security.test.js && node test/google-oauth.test.js"
   },
   "engines": { "node": ">=20" },
   "dependencies": {

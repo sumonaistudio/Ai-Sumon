@@ -5,7 +5,8 @@
 // Phase 2: migration runner + seed data.
 // Phase 3: dashboard / login / register / generate pages.
 // Phase 4: auth — register/login/logout/forgot/reset/me, JWT,
-//   role middleware, rate limiting, audit log. Google OAuth 501 stub.
+//   role middleware, rate limiting, audit log. Google OAuth in
+//   server/google-oauth.js (501 while GOOGLE_CLIENT_ID/SECRET unset).
 // Phase 5: My Creations — list/detail/download/delete, 30-day
 //   retention + expiring-soon warnings, own-files-only.
 // Phase 6: credits ledger + manual bKash/Nagad payments — amounts
@@ -32,6 +33,7 @@ const path = require('path');
 const higgsfield = require('./server/higgsfield');
 const db = require('./server/db');
 const auth = require('./server/auth');
+const googleOAuth = require('./server/google-oauth');
 const creations = require('./server/creations');
 const payments = require('./server/payments');
 const admin = require('./server/admin');
@@ -110,16 +112,11 @@ app.post('/api/auth/forgot-password', auth.authRateLimiter, auth.forgotPassword)
 app.post('/api/auth/reset-password', auth.authRateLimiter, auth.resetPassword);
 app.get('/api/auth/me', auth.requireAuth, auth.me);
 
-// Google OAuth — NOT implemented yet (501 stub, honest).
-app.get('/api/auth/google', (req, res) => res.status(501).json({
-  error: 'GOOGLE_OAUTH_NOT_CONFIGURED',
-  message: 'Google Login এখনো চালু হয়নি — মালিককে Google Cloud Console-এ OAuth Client বানিয়ে GOOGLE_CLIENT_ID ও GOOGLE_CLIENT_SECRET বসাতে হবে (README দেখুন)।',
-  docs: 'https://console.cloud.google.com/apis/credentials',
-}));
-app.get('/api/auth/google/callback', (req, res) => res.status(501).json({
-  error: 'GOOGLE_OAUTH_NOT_CONFIGURED',
-  message: 'Google Login এখনো চালু হয়নি — দেখুন /api/auth/google।',
-}));
+// Google OAuth — real code flow (server/google-oauth.js). While
+// GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET are unset it honestly
+// answers 501 GOOGLE_OAUTH_NOT_CONFIGURED, never a fake login.
+app.get('/api/auth/google', auth.authRateLimiter, googleOAuth.startGoogleAuth);
+app.get('/api/auth/google/callback', auth.authRateLimiter, googleOAuth.handleGoogleCallback);
 
 // ---------- Packages & payment instructions (Phase 6) ----------
 app.get('/api/packages', payments.getPackages); // public — DB needed, else honest 503
