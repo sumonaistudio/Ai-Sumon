@@ -20,9 +20,10 @@
 //  * No DB (DATABASE_URL missing) -> honest 503 DB_NOT_CONFIGURED.
 //    No Higgsfield key -> honest 503 HIGGSFIELD_NOT_CONFIGURED,
 //    checked BEFORE any credit is deducted.
-//  * Reference upload: Supabase Storage is NOT configured, so the
-//    endpoint validates the metadata and always answers 501
-//    STORAGE_NOT_CONFIGURED — never a fake success.
+//  * Reference upload: Supabase Storage (server/storage.js) —
+//    signed upload URL + signed download URL; while it is NOT
+//    configured, the endpoint validates the metadata and answers
+//    501 STORAGE_NOT_CONFIGURED — never a fake success.
 // Schema notes (honest gaps, see final Phase 8 report):
 //  * `generations` has NO watermark_required column in migrations
 //    001-003. The flag is computed here and stored ONLY if the
@@ -39,6 +40,7 @@ const rateLimit = require('express-rate-limit');
 const db = require('./db');
 const credits = require('./credits');
 const higgsfield = require('./higgsfield');
+const storage = require('./storage');
 const settings = require('./settings');
 const notifications = require('./notifications'); // Phase 9: generation-completed notice
 
@@ -628,22 +630,92 @@ async function cancelGeneration(req, res) {
 }
 
 // ---------- POST /api/upload-reference ----------
-// No multipart parser, no storage: JSON metadata only, validated,
-// then an honest 501 — Supabase Storage is not configured.
+// Step 1 of the Storage flow (server/storage.js): validate the
+// metadata, then mint a signed upload URL for one private path.
+// Until SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY are set, an
+// honest 501 — Supabase Storage is not configured. The file
+// itself is PUT straight to Supabase by the browser, never
+// through Render (free tier has no durable filesystem).
 async function uploadReference(req, res) {
   if (!req.user) return unauthorized(res);
   const check = validateUploadReference(req.body);
   if (!check.ok) {
     return res.status(400).json({ error: check.error, message: check.message });
   }
-  return res.status(501).json({
-    error: 'STORAGE_NOT_CONFIGURED',
-    message: 'রেফারেন্স ফাইল আপলোড এখনো চালু হয়নি — Supabase Storage সংযুক্ত হয়নি। ফাইলটি আপলোড হয়নি। Image-to-Video-র জন্য আপাতত হোস্ট করা ছবির URL (input_url) ব্যবহার করুন।',
-    filename: check.filename,
-    content_type: check.contentType,
-    size_bytes: check.sizeBytes,
-    docs: 'https://supabase.com/docs/guides/storage',
-  });
+  if (!storage.isConfigured()) {
+    return res.status(501).json({
+      error: 'STORAGE_NOT_CONFIGURED',
+      message: 'রেফারেন্স ফাইল আপলোড এখনো চালু হয়নি — Supabase Storage সংযুক্ত হয়নি। ফাইলটি আপলোড হয়নি। Image-to-Video-র জন্য আপাতত হোস্ট করা ছবির URL (input_url) ব্যবহার করুন।',
+      filename: check.filename,
+      content_type: check.contentType,
+      size_bytes: check.sizeBytes,
+      docs: 'https://supabase.com/docs/guides/storage',
+    });
+  }
+  const objectPath = storage.buildObjectPath(req.user.id, check.filename);
+  try {
+    const signed = await storage.createSignedUploadUrl(objectPath);
+    return res.json({
+      message: 'আপলোড লিংক তৈরি হয়েছে — ফাইলটি সরাসরি Storage-এ পাঠান।',
+      upload_url: signed.upload_url,
+      path: signed.path,
+      bucket: signed.bucket,
+      expires_in: signed.expires_in,
+      filename: check.filename,
+      content_type: check.contentType,
+      size_bytes: check.sizeBytes,
+    });
+  } catch (err) {
+    console.error('[generate.uploadReference] signed upload failed:', err);
+    return res.status(err.status || 502).json({
+      error: err.code || 'STORAGE_ERROR',
+      message: 'আপলোড লিংক তৈরি করা যায়নি — Storage বাকেট `references` আছে কি না দেখুন।',
+    });
+  }
+}
+
+// ---------- POST /api/upload-reference/confirm ----------
+// Step 2: after the browser PUT the file to the signed upload URL,
+// mint a signed DOWNLOAD URL (7 days) for that same private path
+// and return it as the generation input_url. The path must belong
+// to the caller — one user can never confirm another user's file.
+async function confirmUploadReference(req, res) {
+  if (!req.user) return unauthorized(res);
+  const check = validateUploadReference(req.body);
+  if (!check.ok) {
+    return res.status(400).json({ error: check.error, message: check.message });
+  }
+  const objectPath = typeof req.body.path === 'string' ? req.body.path.trim() : '';
+  const ownPrefix = `${req.user.id}/`;
+  if (!objectPath || !objectPath.startsWith(ownPrefix) || objectPath.includes('..')) {
+    return res.status(403).json({ error: 'FORBIDDEN', message: 'এই ফাইলটি আপনার নয় — নিজের আপলোড করা ফাইলই ব্যবহার করা যাবে।' });
+  }
+  if (!storage.isConfigured()) {
+    return res.status(501).json({
+      error: 'STORAGE_NOT_CONFIGURED',
+      message: 'রেফারেন্স ফাইল আপলোড এখনো চালু হয়নি — Supabase Storage সংযুক্ত হয়নি।',
+      docs: 'https://supabase.com/docs/guides/storage',
+    });
+  }
+  try {
+    const signed = await storage.createSignedDownloadUrl(objectPath);
+    return res.json({
+      message: 'ফাইল আপলোড হয়েছে — এই লিংক দিয়ে জেনারেশন করা যাবে।',
+      url: signed.url,
+      path: signed.path,
+      bucket: signed.bucket,
+      expires_in: signed.expires_in,
+      filename: check.filename,
+      content_type: check.contentType,
+      size_bytes: check.sizeBytes,
+    });
+  } catch (err) {
+    console.error('[generate.confirmUploadReference] signed download failed:', err);
+    return res.status(err.status || 502).json({
+      error: err.code || 'STORAGE_ERROR',
+      message: 'ডাউনলোড লিংক তৈরি করা যায়নি — ফাইলটি আপলোড হয়েছে কি না দেখুন।',
+    });
+  }
 }
 
 module.exports = {
@@ -654,6 +726,7 @@ module.exports = {
   checkStatus,
   cancelGeneration,
   uploadReference,
+  confirmUploadReference,
   generateRateLimiter,
   uploadRateLimiter,
   // exported for isolated tests (no DB needed):
