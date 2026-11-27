@@ -107,11 +107,15 @@ function securityAudit(env) {
     status: 'pass',
     detail: 'কোনো সিক্রেট ফ্রন্টএন্ড ফাইলে নেই — চেক: public/*.html-এ API key / JWT_SECRET / DATABASE_URL নেই।',
   });
+  const googleConfigured = Boolean(String(e.GOOGLE_CLIENT_ID || '').trim())
+    && Boolean(String(e.GOOGLE_CLIENT_SECRET || '').trim());
   checks.push({
     id: 'google_oauth',
-    ok: false,
-    status: 'warn',
-    detail: 'Google Login এখনো 501 stub — OAuth Client বসানো হয়নি (মালিকের সেটআপ লাগবে)।',
+    ok: googleConfigured,
+    status: googleConfigured ? 'pass' : 'warn',
+    detail: googleConfigured
+      ? 'Google Login-এর কোড লেখা আছে ও Client ID/Secret বসানো আছে।'
+      : 'Google Login-এর কোড লেখা আছে, কিন্তু GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET বসানো হয়নি — ততক্ষণ /api/auth/google 501 দেবে।',
   });
   const failed = checks.filter((c) => c.status === 'fail').length;
   const warned = checks.filter((c) => c.status === 'warn').length;

@@ -16,9 +16,9 @@
 //    to the SERVER console (never in production, never to the client).
 //  * Forgot-password always returns the same message whether the
 //    email exists or not (no account-enumeration leak).
-// Google OAuth is NOT implemented here — see server.js stub route
-// (501 GOOGLE_OAUTH_NOT_CONFIGURED): it needs the owner's Google
-// Cloud OAuth client (README ধাপ).
+// Google OAuth is implemented in server/google-oauth.js (it needs
+// the owner's Google Cloud OAuth client — README ধাপ ২ক). It reuses
+// signToken/publicUser from here, so they are exported top-level.
 // ============================================================
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
@@ -366,6 +366,8 @@ module.exports = {
   requireAuth,
   requireRole,
   audit,
+  signToken,
+  publicUser,
   // exported for isolated tests (no DB needed):
   _test: { validateRegister, makeReferralCode, signToken, publicUser },
 };
