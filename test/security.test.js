@@ -49,9 +49,13 @@ check('audit: সব সেট থাকলে গুরুতর সমস্�
   assert.strictEqual(a.failed, 0);
   assert.strictEqual(a.ok, true);
 });
-check('audit: Google OAuth এখনো warn হিসেবে দেখায় (সৎ)', () => {
+check('audit: Google OAuth কোড আছে কিন্তু Client ID/Secret নেই — warn হিসেবে দেখায় (সৎ)', () => {
   const a = security.securityAudit({ JWT_SECRET: 'x'.repeat(40), DATABASE_URL: 'postgres://u:p@h:5432/db' });
   assert.strictEqual(a.checks.find((c) => c.id === 'google_oauth').status, 'warn');
+});
+check('audit: Google OAuth Client ID/Secret বসালে pass দেখায়', () => {
+  const a = security.securityAudit({ JWT_SECRET: 'x'.repeat(40), DATABASE_URL: 'postgres://u:p@h:5432/db', GOOGLE_CLIENT_ID: 'id.apps.googleusercontent.com', GOOGLE_CLIENT_SECRET: 'secret' });
+  assert.strictEqual(a.checks.find((c) => c.id === 'google_oauth').status, 'pass');
 });
 
 console.log(`\nResult: ${passed} passed, ${process.exitCode ? 1 : 0} failed.`);
